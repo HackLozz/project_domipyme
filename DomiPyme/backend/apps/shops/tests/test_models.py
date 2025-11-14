@@ -1,6 +1,6 @@
 import pytest
 from django.contrib.auth import get_user_model
-from shops.models import Shop, Product
+from apps.shops.models import Shop, Product
 
 User = get_user_model()
 

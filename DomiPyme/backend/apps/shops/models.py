@@ -1,25 +1,36 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from django.utils.text import slugify
 from django.core.validators import MinValueValidator
 
 User = settings.AUTH_USER_MODEL
 
 class Shop(models.Model):
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="shops")
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="shops")
     name = models.CharField(max_length=150)
     slug = models.SlugField(unique=True)
     description = models.TextField(blank=True)
     address = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=50, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
-    monthly_fee_active = models.BooleanField(default=True)
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base = slugify(self.name)[:50]
+            slug = base
+            count = 1
+            while Shop.objects.filter(slug=slug).exists():
+                slug = f"{base}-{count}"
+                count += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
 
 class Category(models.Model):
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="categories")
