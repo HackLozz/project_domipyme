@@ -1,0 +1,7 @@
+/* Minimal styles for scaffold */
+body { font-family: Arial, Helvetica, sans-serif; margin:0; padding:0; background:#f7f7f7; }
+.container { max-width:1100px; margin:24px auto; padding:16px; background:#fff; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+header, footer { padding:12px 24px; background:#fff; border-bottom:1px solid #eee; }
+nav a { margin-right:12px; text-decoration:none; color:#333; }
+.btn { display:inline-block; padding:8px 12px; border-radius:6px; background:#2563eb; color:white; text-decoration:none; }
+input, button, textarea { padding:8px; margin:6px 0; width:100%; box-sizing:border-box;}
