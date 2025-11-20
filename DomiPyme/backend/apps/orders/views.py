@@ -5,53 +5,91 @@ from .serializers import CheckoutSerializer
 from .models import Order, OrderItem
 from apps.shops.models import Product, Shop
 from decimal import Decimal
+from django.db import transaction
 
 class CheckoutView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def post(self, request):
         """
-        Accepts:
-        { "items": [ { product, price, qty }, ... ] }
-        Creates Order + OrderItems and returns a 'payment_url' (sandbox) or confirmation.
+        Recibe:
+        { "items": [ { product, qty }, ... ] }
+        - Recalcula precios desde DB (product.price).
+        - Valida stock.
+        - Agrupa items por shop y crea 1 Order por shop.
+        - No decrementa stock (se hace al confirmar pago vía webhook).
+        - Retorna lista de órdenes con `payment_url` (sandbox).
         """
         serializer = CheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        items = data["items"]
+        items = serializer.validated_data.get("items", [])
         if not items:
-            return Response({"detail":"Cart vacío"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Cart vacío"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Determine shop: assume all items from same shop (MVP). If not, later split into multiple orders.
-        # Try to infer shop_id from first product
-        try:
-            first_product = Product.objects.get(pk=items[0]["product"])
-            shop = first_product.shop
-        except Product.DoesNotExist:
-            return Response({"detail":"Producto no encontrado"}, status=status.HTTP_400_BAD_REQUEST)
-
-        order = Order.objects.create(customer=request.user if request.user.is_authenticated else None,
-                                     shop=shop, total=Decimal("0.0"))
-        total = Decimal("0.0")
+        # Cargar productos y validar existencia y stock
+        product_map = {}
         for it in items:
+            pid = it["product"]
             try:
-                prod = Product.objects.get(pk=it["product"])
+                prod = Product.objects.select_related('shop').get(pk=pid)
             except Product.DoesNotExist:
-                order.delete()
-                return Response({"detail":f"Producto {it['product']} no existe"}, status=status.HTTP_400_BAD_REQUEST)
-            qty = it.get("qty",1)
-            price = Decimal(it["price"])
-            OrderItem.objects.create(order=order, product=prod, price=price, quantity=qty)
-            total += price * qty
+                return Response({"detail": f"Producto {pid} no encontrado"}, status=status.HTTP_400_BAD_REQUEST)
+            qty = it.get("qty", 1)
+            if prod.stock < qty:
+                return Response({"detail": f"Stock insuficiente para {prod.name}"}, status=status.HTTP_400_BAD_REQUEST)
+            product_map[pid] = prod
 
-        order.total = total
-        order.save()
+        # Agrupar items por shop_id
+        shops_items = {}
+        for it in items:
+            pid = it["product"]
+            qty = it.get("qty", 1)
+            prod = product_map[pid]
+            shop_id = prod.shop.id
+            shops_items.setdefault(shop_id, []).append({
+                "product": prod,
+                "qty": qty
+            })
 
-        # For MVP: create a fake payment URL (in production: call PayU/MP/Stripe)
-        payment_url = f"https://sandbox.payment.provider/pay?order_id={order.id}&amount={order.total}"
+        created_orders = []
 
-        return Response({
-            "order_id": order.id,
-            "total": str(order.total),
-            "payment_url": payment_url
-        }, status=status.HTTP_201_CREATED)
+        # Para cada shop crea una order atómica
+        for shop_id, shop_items in shops_items.items():
+            shop = Shop.objects.get(pk=shop_id)
+            with transaction.atomic():
+                order = Order.objects.create(
+                    customer=request.user if request.user.is_authenticated else None,
+                    shop=shop,
+                    total=Decimal("0.0"),
+                    status="pending",
+                    payment_confirmed=False
+                )
+                total = Decimal("0.0")
+                for it in shop_items:
+                    prod = it["product"]
+                    qty = int(it["qty"])
+                    price = Decimal(prod.price)  # price from DB
+                    OrderItem.objects.create(
+                        order=order,
+                        product=prod,
+                        price=price,
+                        quantity=qty
+                    )
+                    total += (price * qty)
+                order.total = total
+                order.save()
+
+                # Crear "payment_url" sandbox (en producción, invocar API del proveedor)
+                payment_url = f"https://sandbox.payment.provider/pay?order_id={order.id}&amount={order.total}"
+                created_orders.append({
+                    "order_id": order.id,
+                    "shop_id": shop.id,
+                    "shop_name": shop.name,
+                    "total": str(order.total),
+                    "payment_url": payment_url
+                })
+
+        # Si solo hay una orden, devolvemos un objeto; si varias, lista (frontend debe manejar ambos casos)
+        if len(created_orders) == 1:
+            return Response(created_orders[0], status=status.HTTP_201_CREATED)
+        return Response({"orders": created_orders}, status=status.HTTP_201_CREATED)
