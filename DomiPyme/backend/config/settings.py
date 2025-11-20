@@ -21,7 +21,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "rest_framework_simplejwt",
+    'rest_framework_simplejwt.token_blacklist',
     "corsheaders",
+    # Apps locales
     "apps.accounts",
     "apps.products",
     "apps.payments",
@@ -100,9 +102,7 @@ AUTH_USER_MODEL = "accounts.User"
 # CORS
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Vite dev server
-    "http://127.0.0.1:5173",
-    "http://localhost:8000",  # Django dev server
-    "http://127.0.0.1:8000",
+    "http://localhost:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -125,8 +125,8 @@ from rest_framework_simplejwt.settings import api_settings as jwt_settings
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": True,
-    'BLACKLIST_AFTER_ROTATION': True,
+    "ROTATE_REFRESH_TOKENS": True,      # Opcional
+    'BLACKLIST_AFTER_ROTATION': True,   # Para uso de blacklist
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
