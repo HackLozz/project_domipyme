@@ -1,3 +1,4 @@
+// src/App.jsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
@@ -7,17 +8,12 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ForgotPassword from './pages/ForgotPassword';
 import Navbar from './components/Navbar';
-
-function RequireAuth({ children }) {
-  const token = localStorage.getItem('access_token');
-  if (!token) return <Navigate to="/login" replace />;
-  return children;
-}
+import RequireAuth from './RequireAuth'; // <-- usa el RequireAuth que usa useAuth()
 
 export default function App() {
   return (
     <>
-      <Navbar />  {/* Navbar debe usar Link/useNavigate, pero no BrowserRouter */}
+      <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />

@@ -1,6 +1,6 @@
 from rest_framework import generics, status
-from rest_framework.response import Response
 from .serializers import RegisterSerializer
+from rest_framework.response import Response
 
 class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer

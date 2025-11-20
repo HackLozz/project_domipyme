@@ -6,8 +6,8 @@ export default function Home() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1>Bienvenido a VineFresh</h1>
-        <p>Compra vinos, descubre promociones y más.</p>
+        <h1>Bienvenido a DomiPyme</h1>
+        <p>Descubre la web de los comercios.</p>
 
         <div style={styles.actions}>
           <Link to="/register" style={styles.cta}>Crear cuenta</Link>

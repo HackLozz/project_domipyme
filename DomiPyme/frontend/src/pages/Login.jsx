@@ -1,25 +1,37 @@
-// Login.jsx
+// src/pages/Login.jsx
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import api from '../components/Api';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthProvider';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+
   const nav = useNavigate();
+  const location = useLocation();
+  const auth = useAuth();
+  const from = location.state?.from?.pathname || '/dashboard';
 
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
 
     try {
-      const res = await api.post('auth/token/', { email, password });
-      localStorage.setItem('access_token', res.data.access);
-      localStorage.setItem('refresh_token', res.data.refresh);
-      nav('/dashboard');
+      // Usa la función login del contexto (evita duplicar peticiones)
+      await auth.login(email, password, from);
+      // auth.login redirige internamente
     } catch (err) {
-      setError('Credenciales inválidas');
+      // intenta obtener un mensaje de error del servidor si existe
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.error ||
+        err?.message ||
+        'Credenciales inválidas';
+      setError(msg);
+      setLoading(false);
     }
   };
 
@@ -30,14 +42,33 @@ export default function Login() {
 
         <form onSubmit={submit} style={styles.form}>
           <label style={styles.label}>Email</label>
-          <input value={email} onChange={e => setEmail(e.target.value)} style={styles.input} />
+          <input
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            style={styles.input}
+            type="email"
+            required
+          />
 
           <label style={styles.label}>Password</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} style={styles.input} />
+          <input
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            style={styles.input}
+            required
+            minLength={6}
+          />
 
           {error && <div style={styles.error}>{error}</div>}
 
-          <button style={styles.button} type="submit">Entrar</button>
+          <button
+            style={{ ...styles.button, opacity: loading ? 0.7 : 1 }}
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? 'Validando...' : 'Entrar'}
+          </button>
         </form>
 
         <div style={styles.links}>
