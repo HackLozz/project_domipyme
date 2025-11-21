@@ -68,6 +68,7 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password, redirectTo = '/dashboard') => {
     try {
+      // ejemplo para simplejwt
       const res = await api.post('auth/token/', { email, password });
       localStorage.setItem('access_token', res.data.access);
       localStorage.setItem('refresh_token', res.data.refresh);

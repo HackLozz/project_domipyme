@@ -1,4 +1,3 @@
-version: "3.8"
 services:
   db:
     image: postgres:15
@@ -8,10 +7,16 @@ services:
       POSTGRES_PASSWORD: domipyme
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U domipyme -d domipyme -h localhost -p 5432"]
+      interval: 5s
+      retries: 5
+
   web:
     build: .
     command: >
-      sh -c "python manage.py migrate --no-input &&
+      sh -c "until pg_isready -h db -p 5432 -U domipyme; do echo 'Waiting for db'; sleep 2; done &&
+             python manage.py migrate --no-input &&
              python manage.py collectstatic --no-input &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000"
     volumes:
@@ -19,12 +24,13 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       DATABASE_ENGINE: "postgres"
       POSTGRES_DB: domipyme
       POSTGRES_USER: domipyme
       POSTGRES_PASSWORD: domipyme
       POSTGRES_HOST: db
-volumes:
-  postgres_data:
+      SECRET_KEY: "cambiame_en_produccion"
+      DEBUG: "0"
