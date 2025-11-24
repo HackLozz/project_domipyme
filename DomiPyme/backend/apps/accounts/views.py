@@ -1,3 +1,4 @@
+# backend/apps/accounts/views.py
 from django.contrib.auth import get_user_model
 from rest_framework import generics, status, permissions
 from rest_framework.response import Response
@@ -24,9 +25,11 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+
 class ObtainTokenPairView(APIView):
     """
     Endpoint simple que devuelve access + refresh usando email + password.
+    Ahora el serializer recibe context={'request': request} para compatibilidad.
     """
     permission_classes = [permissions.AllowAny]
 
@@ -37,12 +40,14 @@ class ObtainTokenPairView(APIView):
         refresh = RefreshToken.for_user(user)
         return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
 
+
 class MeView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
         return self.request.user
+
 
 class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
@@ -60,7 +65,7 @@ class PasswordResetRequestView(APIView):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = token_generator.make_token(user)
         # Construye una URL de ejemplo (frontend debería tener una ruta para recibir uid+token)
-        reset_path = reverse("accounts:password-reset-confirm")  # definiremos nombre en urls.py
+        reset_path = reverse("accounts:password-reset-confirm")  # definimos nombre en urls.py
         frontend_base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173")
         reset_url = f"{frontend_base}/reset-password/?uid={uid}&token={token}"
 
@@ -70,6 +75,7 @@ class PasswordResetRequestView(APIView):
         send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
 
         return Response({"detail": "Si el correo existe, se enviaron instrucciones."}, status=status.HTTP_200_OK)
+
 
 class PasswordResetConfirmView(APIView):
     permission_classes = [permissions.AllowAny]

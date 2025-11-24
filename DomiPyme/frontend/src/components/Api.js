@@ -74,7 +74,6 @@ api.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      // Normalizar URL del refresh: si BASE es relativo o absoluto, usar URL constructor seguro
       const refreshPath = 'auth/token/refresh/';
       const refreshUrl = new URL(refreshPath, BASE).toString();
 

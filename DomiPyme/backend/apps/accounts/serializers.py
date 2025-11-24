@@ -1,3 +1,4 @@
+# backend/apps/accounts/serializers.py
 from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
@@ -9,6 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("id", "email", "first_name", "last_name", "is_staff", "date_joined")
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
@@ -22,12 +24,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        email = validated_data.get("email")
-        password = validated_data.pop("password")
-        user = User.objects.create_user(email=email, password=password, **{k:v for k,v in validated_data.items() if k!='email'})
-        user.set_password(password)
-        user.save()
+        """
+        Usar el manager create_user para mantener la lógica centralizada.
+        """
+        data = validated_data.copy()
+        password = data.pop("password")
+        email = data.pop("email", None)
+        # data ahora contiene first_name/last_name u otros campos extras
+        user = User.objects.create_user(email=email, password=password, **data)
         return user
+
 
 class CustomTokenObtainSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -36,8 +42,11 @@ class CustomTokenObtainSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs.get("email")
         password = attrs.get("password")
+        request = self.context.get("request", None)
+
         if email and password:
-            user = authenticate(username=email, password=password)
+            # pasamos request para compatibilidad con backends que lo necesiten
+            user = authenticate(request=request, username=email, password=password)
             if not user:
                 msg = _("No se pudo autenticar con las credenciales proporcionadas.")
                 raise serializers.ValidationError(msg, code="authorization")
@@ -48,8 +57,10 @@ class CustomTokenObtainSerializer(serializers.Serializer):
         attrs["user"] = user
         return attrs
 
+
 class PasswordResetRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
+
 
 class PasswordResetConfirmSerializer(serializers.Serializer):
     uidb64 = serializers.CharField()
