@@ -1,4 +1,4 @@
-# accounts/models.py
+# backend/apps/accounts/models.py
 from django.db import models
 from django.contrib.auth.models import (
     AbstractBaseUser,
@@ -29,12 +29,15 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         extra_fields.setdefault("is_active", True)
+        # allow passing is_merchant via extra_fields (default False)
+        extra_fields.setdefault("is_merchant", False)
         return self._create_user(email, password, **extra_fields)
 
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         extra_fields.setdefault("is_active", True)
+        extra_fields.setdefault("is_merchant", False)
 
         if extra_fields.get("is_staff") is not True:
             raise ValueError("El superusuario debe tener is_staff=True.")
@@ -53,6 +56,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(_("last name"), max_length=150, blank=True)
     is_active = models.BooleanField(_("active"), default=True)
     is_staff = models.BooleanField(_("staff status"), default=False)
+    # Nuevo campo para distinguir merchants (tiendas)
+    is_merchant = models.BooleanField(_("merchant status"), default=False)
     date_joined = models.DateTimeField(_("date joined"), default=timezone.now)
 
     objects = CustomUserManager()
