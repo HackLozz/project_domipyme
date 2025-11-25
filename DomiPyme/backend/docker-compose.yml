@@ -1,36 +1,19 @@
 services:
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: domipyme
-      POSTGRES_USER: domipyme
-      POSTGRES_PASSWORD: domipyme
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U domipyme -d domipyme -h localhost -p 5432"]
-      interval: 5s
-      retries: 5
-
   web:
-    build: .
-    command: >
-      sh -c "until pg_isready -h db -p 5432 -U domipyme; do echo 'Waiting for db'; sleep 2; done &&
-             python manage.py migrate --no-input &&
-             python manage.py collectstatic --no-input &&
-             gunicorn config.wsgi:application --bind 0.0.0.0:8000"
-    volumes:
-      - .:/code
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
+      SECRET_KEY: "REEMPLAZAME_EN_PROD"
+      DEBUG: "0"
       DATABASE_ENGINE: "postgres"
       POSTGRES_DB: domipyme
       POSTGRES_USER: domipyme
       POSTGRES_PASSWORD: domipyme
       POSTGRES_HOST: db
-      SECRET_KEY: "cambiame_en_produccion"
-      DEBUG: "0"
+      POSTGRES_PORT: 5432
+      FRONTEND_BASE_URL: "http://localhost:5173"
+      EMAIL_BACKEND: "smtp"
+      EMAIL_HOST: "smtp.sendgrid.net"
+      EMAIL_PORT: "587"
+      EMAIL_USE_TLS: "1"
+      EMAIL_HOST_USER: "apikey"
+      EMAIL_HOST_PASSWORD: "YOUR_SENDGRID_API_KEY"
+      DEFAULT_FROM_EMAIL: "no-reply@domipyme.com"

@@ -2,16 +2,25 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../components/Api';
+import axios from 'axios'; // necesario para isCancel (detectar cancelaciones)
 
 /**
  * ShopPage.jsx
- * - Carga tienda y productos desde api.get(`shops/${slug}/`)
+ * - Carga tienda por slug y luego productos por shop id
  * - Skeletons mientras carga
  * - Animaciones suaves en cards y al agregar al carrito
  * - Sincroniza dp_cart en localStorage y evita duplicados (aumenta qty si existe)
  */
 
 const ANIM_MS = 300;
+
+const firstDefined = (...vals) => {
+  for (let i = 0; i < vals.length; i++) {
+    const v = vals[i];
+    if (v !== undefined && v !== null) return v;
+  }
+  return undefined;
+};
 
 export default function ShopPage() {
   const { slug } = useParams();
@@ -22,6 +31,7 @@ export default function ShopPage() {
   const [toast, setToast] = useState(null); // mensaje corto al agregar
   const [adding, setAdding] = useState({}); // { productUid: true } para animar botón
   const mountedRef = useRef(true);
+  const toastTimerRef = useRef(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -30,26 +40,81 @@ export default function ShopPage() {
     const load = async () => {
       setLoading(true);
       setError(null);
+      setShop(null);
+      setProducts([]);
       try {
-        const res = await api.get(`shops/${slug}/`, { signal: controller.signal });
-        // soporte respuestas en varias formas:
-        const shopData = res.data?.shop ?? res.data;
-        const productsData = res.data?.products ?? res.data?.items ?? res.data?.products ?? [];
+        // 1) Pedimos la shop por slug (endpoint implementado en backend: /api/shops/slug/:slug/)
+        const shopResp = await api.get(`shops/slug/${encodeURIComponent(slug)}/`, {
+          signal: controller.signal,
+        });
+
+        // Normalizar shop (soportar diferentes shapes)
+        const shopData = shopResp?.data ?? null;
+        if (!shopData) throw new Error('Respuesta inválida del servidor (shop).');
+
+        if (!mountedRef.current) return;
         setShop(shopData);
-        setProducts(Array.isArray(productsData) ? productsData : []);
+
+        // 2) Pedir productos por shop id (endpoints: /api/products/?shop=<id>)
+        const shopId = firstDefined(shopData.id, shopData.pk, shopData._id, null);
+        if (!shopId) {
+          // Si no hay id, no intentamos cargar productos
+          setProducts([]);
+          return;
+        }
+
+        const prodResp = await api.get(`products/?shop=${encodeURIComponent(shopId)}`, {
+          signal: controller.signal,
+        });
+
+        if (!mountedRef.current) return;
+
+        // Manejar paginación (results) o lista directa
+        const prodData = prodResp?.data;
+        const resolvedProducts = Array.isArray(prodData)
+          ? prodData
+          : Array.isArray(prodData?.results)
+            ? prodData.results
+            : prodData?.results ?? prodData?.items ?? prodData?.products ?? [];
+
+        setProducts(resolvedProducts);
       } catch (e) {
-        if (e.name === 'CanceledError' || e.name === 'AbortError') return;
+        // Detectar cancel/abort de axios
+        const isCanceled = (err) =>
+          !err
+            ? false
+            : err?.name === 'CanceledError' ||
+              err?.name === 'AbortError' ||
+              err?.code === 'ERR_CANCELED' ||
+              (axios && axios.isCancel && axios.isCancel(err));
+
+        if (isCanceled(e)) {
+          // request cancelado por abort -> no hacer nada
+          return;
+        }
+
         console.error('Shop load error', e);
-        setError('No se pudo cargar la tienda. Intenta recargar.');
+        // intentar extraer mensaje del backend
+        const serverMessage = e?.response?.data?.detail || e?.response?.data || e?.message;
+        setError(typeof serverMessage === 'string' ? serverMessage : 'No se pudo cargar la tienda. Intenta recargar.');
       } finally {
         if (mountedRef.current) setLoading(false);
       }
     };
 
-    load();
+    if (slug) load();
+    else {
+      setLoading(false);
+      setError('Slug inválido.');
+    }
+
     return () => {
       mountedRef.current = false;
       controller.abort();
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
     };
   }, [slug]);
 
@@ -60,43 +125,55 @@ export default function ShopPage() {
   const makeUid = (prefix = '') => `${Date.now()}_${Math.random().toString(36).slice(2,8)}_${prefix}`;
 
   const addToCart = (product) => {
-    // animación en el botón
-    const key = product.id ?? makeUid('p');
+    if (!product) return;
+    // animación en el botón - usar key consistente string
+    const key = String(firstDefined(product.id, product.pk, makeUid('p')));
     setAdding((s) => ({ ...s, [key]: true }));
 
     // leer carrito actual
-    const raw = JSON.parse(localStorage.getItem('dp_cart') || '[]');
+    let raw = [];
+    try {
+      raw = JSON.parse(localStorage.getItem('dp_cart') || '[]');
+      if (!Array.isArray(raw)) raw = [];
+    } catch (err) {
+      raw = [];
+    }
 
     // buscar si ya existe (comparar por product_id y shop)
+    const shopId = String(firstDefined(shop?.id, shop?.pk, ''));
     const existingIndex = raw.findIndex(
-      (it) => (it.product_id ? String(it.product_id) === String(product.id) : false) && String(it.shop_id) === String(shop?.id ?? shop?.pk ?? '')
+      (it) => String(it.product_id) === String(firstDefined(product.id, product.pk, '')) && String(it.shop_id) === shopId
     );
 
     if (existingIndex >= 0) {
       raw[existingIndex].qty = (Number(raw[existingIndex].qty) || 1) + 1;
-      // opcional: actualizar precio/name/image por si cambiaron
-      raw[existingIndex].price = product.price ?? product.unit_price ?? product.amount ?? raw[existingIndex].price;
-      raw[existingIndex].name = product.name ?? raw[existingIndex].name;
-      raw[existingIndex].image = product.image ?? product.photo ?? raw[existingIndex].image;
+      raw[existingIndex].price = Number(firstDefined(product.price, product.unit_price, product.amount, raw[existingIndex].price || 0));
+      raw[existingIndex].name = firstDefined(product.name, product.title, raw[existingIndex].name);
+      raw[existingIndex].image = firstDefined(product.image, product.photo, raw[existingIndex].image);
     } else {
       const item = {
-        uid: makeUid(`p${product.id}`),
-        product_id: product.id,
-        shop_id: shop?.id ?? shop?.pk ?? null,
-        name: product.name || product.title || 'Producto',
-        price: Number(product.price ?? product.unit_price ?? product.amount ?? 0),
+        uid: makeUid(`p${firstDefined(product.id, product.pk, '')}`),
+        product_id: firstDefined(product.id, product.pk, null),
+        shop_id: shopId || null,
+        name: firstDefined(product.name, product.title, 'Producto'),
+        price: Number(firstDefined(product.price, product.unit_price, product.amount, 0)),
         qty: 1,
-        image: product.image || product.photo || null,
+        image: firstDefined(product.image, product.photo, null),
         raw: product,
       };
       raw.unshift(item); // añadir al inicio
     }
 
-    localStorage.setItem('dp_cart', JSON.stringify(raw));
+    try {
+      localStorage.setItem('dp_cart', JSON.stringify(raw));
+    } catch (e) {
+      console.error('Error saving cart to localStorage', e);
+    }
 
     // mostrar toast breve
-    setToast(`${product.name} añadido al carrito`);
-    setTimeout(() => setToast(null), 1600);
+    setToast(`${firstDefined(product.name, product.title, 'Producto')} añadido al carrito`);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 1600);
 
     // remover animación de agregar tras ANIM_MS
     setTimeout(() => {
@@ -166,7 +243,7 @@ export default function ShopPage() {
 
         <div style={styles.headerActions}>
           <Link to="/catalog" style={styles.linkBtn}>Volver al catálogo</Link>
-          <Link to={`/shop/${shop.slug ?? shop.id}`} style={styles.primaryBtn}>Ver tienda</Link>
+          <Link to={`/shop/${firstDefined(shop.slug, shop.id)}`} style={styles.primaryBtn}>Ver tienda</Link>
         </div>
       </header>
 
@@ -177,13 +254,13 @@ export default function ShopPage() {
         ) : (
           <ul style={styles.grid}>
             {products.map((p, idx) => {
-              const key = p.id ?? idx;
+              const key = String(firstDefined(p.id, p.pk, idx));
               const isAdding = Boolean(adding[key]);
               return (
                 <li key={key} style={{ ...styles.card, ...(isAdding ? styles.cardAdding : {}) }} className="product-card">
                   <div style={styles.imageWrap}>
                     <img
-                      src={p.image || p.photo || placeholder}
+                      src={firstDefined(p.image, p.photo, placeholder)}
                       alt={p.name || p.title}
                       style={styles.image}
                       onError={(e) => (e.currentTarget.src = placeholder)}
@@ -197,7 +274,7 @@ export default function ShopPage() {
                         {p.description && <div style={styles.prodDesc}>{String(p.description).slice(0, 80)}</div>}
                       </div>
 
-                      <div style={{ fontWeight: 800 }}>{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(Number(p.price || 0))}</div>
+                      <div style={{ fontWeight: 800 }}>{new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(Number(firstDefined(p.price, 0)))}</div>
                     </div>
 
                     <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -209,7 +286,7 @@ export default function ShopPage() {
                         {isAdding ? 'Añadido' : 'Agregar'}
                       </button>
 
-                      <Link to={`/shop/${shop.slug ?? shop.id}/product/${p.id}`} style={styles.viewBtn}>Ver</Link>
+                      <Link to={`/shop/${firstDefined(shop.slug, shop.id)}/product/${p.id}`} style={styles.viewBtn}>Ver</Link>
                     </div>
                   </div>
                 </li>

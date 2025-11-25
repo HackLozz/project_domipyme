@@ -28,6 +28,8 @@ export default function ShopCreate() {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [desc, setDesc] = useState('');
+  const [address, setAddress] = useState(''); // agregado: estado para dirección
+  const [phone, setPhone] = useState('');     // agregado: estado para teléfono
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoBase64, setLogoBase64] = useState(null);
@@ -78,8 +80,35 @@ export default function ShopCreate() {
   const validate = () => {
     if (!name || name.trim().length < 3) return 'El nombre debe tener al menos 3 caracteres.';
     if (!slug || slug.trim().length < 2) return 'El slug no puede estar vacío.';
-    // opcional: validación de descripción
+    if (desc && desc.length > 300) return 'La descripción no puede tener más de 300 caracteres.';
+    // opcional: validación de dirección/teléfono mínima
     return null;
+  };
+
+  const parseErrorMessage = (err) => {
+    // Intenta extraer un mensaje legible desde la respuesta del backend
+    if (!err || !err.response || !err.response.data) {
+      return err?.message || 'Error creando la tienda.';
+    }
+    const data = err.response.data;
+    // Mensaje directo
+    if (data.detail) return data.detail;
+    // Si viene como { field: ["msg"] }
+    if (typeof data === 'object') {
+      const parts = [];
+      for (const k in data) {
+        try {
+          const val = data[k];
+          if (Array.isArray(val)) parts.push(`${k}: ${val.join(' ')}`);
+          else if (typeof val === 'string') parts.push(`${k}: ${val}`);
+          else parts.push(`${k}: ${JSON.stringify(val)}`);
+        } catch (e) {
+          // fallback
+        }
+      }
+      if (parts.length) return parts.join(' | ');
+    }
+    return 'Error creando la tienda. Revisa la consola para más detalles.';
   };
 
   const submit = async (e) => {
@@ -94,26 +123,53 @@ export default function ShopCreate() {
 
     setLoading(true);
     try {
-      // payload: si tu backend espera multipart/form-data, cambia por FormData
+      // payload: enviamos los campos que el backend espera
       const payload = {
         name: name.trim(),
         description: desc.trim(),
         slug: slugify(slug),
-        image: logoBase64, // base64 data url (opcional); adapta si necesitas FormData
+        address: address?.trim() || '',
+        phone: phone?.trim() || '',
+        // si tu backend no soporta base64 image, ignora este campo en el servidor
+        image: logoBase64 || null,
       };
 
       const res = await api.post('shops/', payload);
 
-      const resSlug = res.data?.slug ?? res.data?.id ?? payload.slug;
-      // navegar a la tienda creada
-      nav(`/shop/${resSlug}`);
+      // prioridad: usar slug devuelto por el backend (si existe)
+      let resSlug = res?.data?.slug ?? null;
+      // si no hay slug pero existe id, hacemos GET para conseguir el slug (evita navegar con id)
+      if (!resSlug && res?.data?.id) {
+        try {
+          const byId = await api.get(`shops/${res.data.id}/`);
+          resSlug = byId?.data?.slug ?? String(res.data.id);
+        } catch (e) {
+          // si falla la petición por id, fallback al slug generado localmente (payload.slug)
+          console.warn('No se pudo obtener slug por id, se usará slug local', e);
+          resSlug = payload.slug;
+        }
+      }
+
+      // Finalmente, navegar a la URL por slug
+      if (!resSlug) resSlug = payload.slug || '';
+      // Si por seguridad no hay slug, no navegar y mostrar error
+      if (!resSlug) {
+        setError('No se pudo determinar la URL de la tienda creada.');
+      } else {
+        nav(`/shop/${resSlug}`);
+      }
     } catch (err) {
       console.error('Error creando tienda:', err);
-      // mensaje amigable si backend responde con detalle
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.slug?.[0] ||
-        'Error creando la tienda. Revisa la consola.';
+
+      // Si es 401, redirigir a login (usuario no autenticado)
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        // opcional: enviar al login y preservar la ruta de retorno
+        nav('/login', { state: { from: '/shop/create' } });
+        return;
+      }
+
+      const msg = parseErrorMessage(err);
       setError(msg);
     } finally {
       setLoading(false);
@@ -185,6 +241,30 @@ export default function ShopCreate() {
                   {desc.length}/300
                 </small>
               </div>
+            </div>
+
+            <div style={styles.field}>
+              <label style={styles.label}>Dirección</label>
+              <input
+                className="input-field"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Dirección de la tienda"
+                style={styles.input}
+                disabled={loading}
+              />
+            </div>
+
+            <div style={styles.field}>
+              <label style={styles.label}>Teléfono</label>
+              <input
+                className="input-field"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Teléfono de contacto"
+                style={styles.input}
+                disabled={loading}
+              />
             </div>
 
             <div style={styles.field}>

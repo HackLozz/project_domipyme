@@ -26,29 +26,41 @@ export default function Register() {
     return () => clearTimeout(t);
   }, []);
 
-  // Autogenerar username si el usuario no lo edita
+  // Autogenerar username si el usuario no lo edita (no cambia estilos)
   useEffect(() => {
     if (!form.username) {
       const namePart = (form.first_name || form.email || '').split(' ')[0] || '';
-      const generated = (namePart || form.email.split('@')[0] || '').toLowerCase().replace(/[^\w\d_-]/g, '');
-      setForm((f) => ({ ...f, username: generated }));
+      const generated = (namePart || (form.email || '').split('@')[0] || '')
+        .toLowerCase()
+        .replace(/[^\w\d_-]/g, '');
+      // solo actualizar si es distinto para evitar renders infinitos
+      if (generated && generated !== form.username) {
+        setForm((f) => ({ ...f, username: generated }));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.first_name, form.email]);
 
   const onChange = (e) => {
-    setFieldErrors({});
+    // normalizar nombre de campo (backend usa first_name, last_name, email, password)
+    const { name, value } = e.target;
+    setFieldErrors((prev) => ({ ...prev, [name]: undefined })); // borrar error de campo específico
     setError(null);
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const validate = () => {
     const errors = {};
-    if (!form.email || !form.email.includes('@')) errors.email = 'Email inválido';
-    if (!form.password || form.password.length < 6) errors.password = 'La contraseña debe tener al menos 6 caracteres';
-    if (form.password !== form.passwordConfirm) errors.passwordConfirm = 'Las contraseñas no coinciden';
+    const email = (form.email || '').trim();
+    const pwd = form.password || '';
+    const pwdConfirm = form.passwordConfirm || '';
+
+    if (!email || !email.includes('@')) errors.email = 'Email inválido';
+    if (!pwd || pwd.length < 8) errors.password = 'La contraseña debe tener al menos 8 caracteres';
+    if (pwd !== pwdConfirm) errors.passwordConfirm = 'Las contraseñas no coinciden';
     if (!form.first_name || form.first_name.trim().length < 2) errors.first_name = 'Nombre muy corto';
     if (!form.last_name || form.last_name.trim().length < 2) errors.last_name = 'Apellido muy corto';
+
     return errors;
   };
 
@@ -59,40 +71,83 @@ export default function Register() {
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
+      // foco en primer error visible
+      const firstKey = Object.keys(errs)[0];
+      const el = document.querySelector(`[name="${firstKey}"]`);
+      if (el) el.focus();
       return;
     }
 
     setLoading(true);
     try {
+      // Payload mínimo que backend espera (evitamos enviar campos no soportados)
       const payload = {
-        email: form.email,
+        email: form.email.trim(),
         password: form.password,
-        first_name: form.first_name,
-        last_name: form.last_name,
-        username: form.username || form.email.split('@')[0],
-        phone: form.phone,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
       };
 
-      // Ajusta la ruta si tu backend usa otro path
-      await api.post('auth/register/', payload);
+      // POST al endpoint de registro
+      const resp = await api.post('auth/register/', payload);
 
-      // redirigir a login tras registro (como antes)
-      nav('/login', { replace: true });
+      // Si respuesta ok (201/200) redirigimos al login
+      // Comportamiento: redirigir sólo si la respuesta es exitosa
+      if (resp && (resp.status === 201 || resp.status === 200)) {
+        nav('/login', { replace: true });
+      } else {
+        // fallback: si servidor devolvió algo inesperado, mostrar mensaje genérico
+        setError('Registro completado (respuesta inesperada). Por favor inicia sesión.');
+      }
     } catch (err) {
       console.error('Register error:', err);
-      // mapear errores de backend de forma amigable
       const resp = err?.response?.data;
+
+      // Manejo robusto de errores DRF
       if (resp) {
-        // si viene un objeto con campos, mostrarlos
+        // Caso: resp es object con campos -> mapear a fieldErrors
         if (typeof resp === 'object' && !Array.isArray(resp)) {
           const fl = {};
-          for (const k of Object.keys(resp)) {
-            // preferir arrays/strings
-            const v = resp[k];
-            fl[k] = Array.isArray(v) ? v.join(' ') : String(v);
+          // drf puede retornar 'non_field_errors' o 'detail'
+          if (resp.detail) {
+            setError(String(resp.detail));
           }
-          setFieldErrors(fl);
-          setError(fl.detail || Object.values(fl)[0] || 'Error en el registro');
+          for (const k of Object.keys(resp)) {
+            const v = resp[k];
+            // normalizar a string
+            if (Array.isArray(v)) {
+              fl[k] = v.join(' ');
+            } else if (typeof v === 'object' && v !== null) {
+              // por si vienen dicts anidados
+              fl[k] = JSON.stringify(v);
+            } else {
+              fl[k] = String(v);
+            }
+          }
+
+          // Mapear claves de backend a nombres de campos del formulario si es necesario
+          const mapped = {};
+          for (const key of Object.keys(fl)) {
+            // ejemplos: email -> email, non_field_errors -> error general, password -> password
+            if (key === 'non_field_errors') {
+              setError(fl[key]);
+            } else {
+              mapped[key] = fl[key];
+            }
+          }
+
+          // Actualizar errores por campo y mensaje general si no hay detail
+          if (!error && Object.keys(mapped).length > 0) {
+            // si hay errores de email/pwd mostrarlos en UI
+            setFieldErrors((prev) => ({ ...prev, ...mapped }));
+            if (!error) {
+              const first = Object.values(mapped)[0];
+              setError(String(first));
+            }
+          }
+        } else if (Array.isArray(resp)) {
+          // array de errores -> mostrar el primero
+          setError(String(resp[0] || 'Error en el registro'));
         } else {
           setError(String(resp));
         }
@@ -205,7 +260,7 @@ export default function Register() {
                   style={styles.input}
                   className="input-field"
                   disabled={loading}
-                  minLength={6}
+                  minLength={8}
                   required
                 />
                 {fieldErrors.password && <small style={styles.errField}>{fieldErrors.password}</small>}
@@ -221,7 +276,7 @@ export default function Register() {
                   style={styles.input}
                   className="input-field"
                   disabled={loading}
-                  minLength={6}
+                  minLength={8}
                   required
                 />
                 {fieldErrors.passwordConfirm && <small style={styles.errField}>{fieldErrors.passwordConfirm}</small>}

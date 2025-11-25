@@ -17,6 +17,17 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 from django.core.mail import send_mail
 from django.urls import reverse
 from django.conf import settings
+from rest_framework import viewsets
+from .serializers import AdminUserSerializer
+from rest_framework.permissions import IsAdminUser
+from django.apps import apps
+
+User = apps.get_model(settings.AUTH_USER_MODEL.split('.')[0], settings.AUTH_USER_MODEL.split('.')[1]) if '.' in settings.AUTH_USER_MODEL else apps.get_model(settings.AUTH_USER_MODEL)
+
+class AdminUserViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = User.objects.all().order_by('-date_joined')
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsAdminUser]
 
 User = get_user_model()
 token_generator = PasswordResetTokenGenerator()

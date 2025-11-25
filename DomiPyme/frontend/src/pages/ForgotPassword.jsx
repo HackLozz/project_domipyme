@@ -27,7 +27,8 @@ export default function ForgotPassword() {
     setMsg(null);
     setError(null);
 
-    const v = validateEmail(email.trim());
+    const raw = (email || '').trim();
+    const v = validateEmail(raw);
     if (v) {
       setError(v);
       return;
@@ -35,19 +36,46 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      // Ajusta endpoint según tu backend si es diferente
-      await api.post('auth/forgot-password/', { email: email.trim() });
+      // endpoint ajustado al backend actual: auth/password-reset-request/
+      // backend intentionally returns 200 even if email doesn't exist (security)
+      await api.post('auth/password-reset-request/', { email: raw });
       setMsg('Si existe una cuenta con ese email, recibirás instrucciones por correo.');
+      setError(null);
     } catch (err) {
       console.error('ForgotPassword error:', err);
-      // Intentar extraer mensaje del backend
-      const serverMsg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.error ||
-        (err?.response?.data && typeof err.response.data === 'object'
-          ? Object.values(err.response.data).flat().join(' ')
-          : null);
+
+      // Mejor extracción del mensaje del backend
+      let serverMsg = null;
+
+      // Caso: respuesta con body (err.response.data)
+      if (err?.response?.data) {
+        const data = err.response.data;
+        if (typeof data === 'string') {
+          serverMsg = data;
+        } else if (data.detail) {
+          serverMsg = data.detail;
+        } else if (data.error) {
+          serverMsg = data.error;
+        } else if (typeof data === 'object') {
+          // data puede ser { email: ["..."] } o { non_field_errors: ["..."] }
+          try {
+            const values = Object.values(data)
+              .flat()
+              .map(vv => (typeof vv === 'string' ? vv : JSON.stringify(vv)));
+            serverMsg = values.join(' ');
+          } catch (e) {
+            serverMsg = JSON.stringify(data);
+          }
+        }
+      } else if (err?.request) {
+        // No response received (network)
+        serverMsg = 'No se recibió respuesta del servidor. Revisa tu conexión o intenta más tarde.';
+      } else {
+        serverMsg = err.message || 'Ocurrió un error inesperado.';
+      }
+
       setError(serverMsg || 'No se pudo enviar la solicitud. Intenta nuevamente más tarde.');
+      setMsg(null);
     } finally {
       setLoading(false);
     }

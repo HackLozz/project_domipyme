@@ -130,13 +130,37 @@ SIMPLE_JWT = {
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
-# EMAIL (en desarrollo imprimimos el correo en consola)
-EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@domipyme.local")
-
 # MEDIA (para subir logos / imágenes)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # (Opcional) seguridad extra en producción
 CSRF_TRUSTED_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", "http://localhost:5173").split()
+
+# --- BEGIN: Env sensitive settings (paste near other settings) ---
+# Frontend base (usado en reset password links)
+FRONTEND_BASE_URL = os.getenv("FRONTEND_BASE_URL", "http://localhost:5173")
+
+# Email config: support simple 'console' or 'smtp' selection via env var.
+EMAIL_BACKEND_ENV = os.getenv("EMAIL_BACKEND", "console").lower()
+
+if EMAIL_BACKEND_ENV in ("smtp", "smtp_backend", "smtplib"):
+    # Real SMTP transport (SendGrid, Mailgun, etc.)
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = os.getenv("EMAIL_HOST", "smtp.sendgrid.net")
+    EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
+    EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "1") in ("1", "true", "True")
+    EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+else:
+    # Default: dev console backend (prints emails in runserver output)
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "no-reply@domipyme.local")
+
+# Ensure CSRF trusted origins includes frontend origin (esp. para producción)
+FRONTEND_ORIGINS = os.getenv("CSRF_TRUSTED_ORIGINS", FRONTEND_BASE_URL).split(',')
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in FRONTEND_ORIGINS if o.strip()]
+# Also ensure CORS is set to allow dev front-end
+CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(',')
+# --- END: Env sensitive settings ---

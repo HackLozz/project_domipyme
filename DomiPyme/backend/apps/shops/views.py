@@ -1,5 +1,6 @@
 # backend/apps/shops/views.py
 from rest_framework import viewsets, generics, permissions, status
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.apps import apps
@@ -32,30 +33,17 @@ class ShopDetailView(generics.RetrieveAPIView):
 
 # --- Nuevos ViewSets (usados por el router y por las rutas nombradas) ---
 class ShopViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet para Shops (admin/merchant create/update/delete via permissions).
-    Se asigna owner automáticamente en create.
-    """
     queryset = Shop.objects.all().order_by('-created_at')
     serializer_class = ShopSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get_serializer_class(self):
-        # Para retrieve usamos detalle si existe
-        if self.action == 'retrieve' and hasattr(self, 'serializer_class'):
-            # comprobar si existe un serializer "detail"
-            try:
-                return ShopDetailSerializer
-            except Exception:
-                return self.serializer_class
-        return self.serializer_class
+    def get_permissions(self):
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            return [IsAuthenticated()]
+        return super().get_permissions()
 
     def perform_create(self, serializer):
-        # Asigna owner automáticamente si hay user autenticado
-        if self.request.user and self.request.user.is_authenticated:
-            serializer.save(owner=self.request.user)
-        else:
-            serializer.save()
+        serializer.save(owner=self.request.user)
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -117,14 +105,12 @@ class ProductViewSet(viewsets.ModelViewSet):
                 raise permissions.PermissionDenied("No tienes permiso para mover este producto a esa tienda.")
         serializer.save()
 
-    @action(detail=False, methods=['get'], url_path='by-shop/(?P<slug>[-a-zA-Z0-9_]+)')
-    def list_by_shop(self, request, slug=None):
-        # Listar productos por shop slug
-        shop = get_object_or_404(Shop, slug=slug)
-        qs = self.get_queryset().filter(shop=shop)
-        page = self.paginate_queryset(qs)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(qs, many=True)
+    @action(detail=False, methods=['get'], url_path='slug/(?P<slug>[-a-zA-Z0-9_]+)')
+    def retrieve_by_slug(self, request, slug=None):
+        try:
+            shop = Shop.objects.get(slug=slug)
+        except Shop.DoesNotExist:
+            return Response({"detail": "Shop not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = ShopSerializer(shop, context={'request': request})
         return Response(serializer.data)
+

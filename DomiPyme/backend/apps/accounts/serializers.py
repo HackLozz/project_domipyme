@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model, authenticate
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.password_validation import validate_password
+from rest_framework.validators import UniqueValidator
 
 User = get_user_model()
 
@@ -13,25 +14,25 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True)
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    email = serializers.EmailField(required=True, validators=[UniqueValidator(queryset=User.objects.all(), message="Ese correo ya está registrado.")])
 
     class Meta:
         model = User
         fields = ("email", "password", "first_name", "last_name")
 
-    def validate_password(self, value):
-        validate_password(value)
-        return value
+    def validate(self, data):
+        # evitar password igual al email o nombre
+        pwd = data.get('password', '')
+        email = data.get('email', '').lower()
+        if email and pwd and email in pwd.lower():
+            raise serializers.ValidationError("La contraseña no puede contener el correo.")
+        return data
 
     def create(self, validated_data):
-        """
-        Usar el manager create_user para mantener la lógica centralizada.
-        """
-        data = validated_data.copy()
-        password = data.pop("password")
-        email = data.pop("email", None)
-        # data ahora contiene first_name/last_name u otros campos extras
-        user = User.objects.create_user(email=email, password=password, **data)
+        password = validated_data.pop("password")
+        email = validated_data.pop("email")
+        user = User.objects.create_user(email=email, password=password, **validated_data)
         return user
 
 
@@ -70,3 +71,11 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     def validate_new_password(self, value):
         validate_password(value)
         return value
+    
+
+# backend/apps/accounts/serializers.py (append)
+class AdminUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('id', 'email', 'first_name', 'last_name', 'is_staff', 'is_merchant', 'date_joined')
+
