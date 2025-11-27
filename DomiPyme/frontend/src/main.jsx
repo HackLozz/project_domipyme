@@ -1,15 +1,27 @@
+// src/main.jsx
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthProvider';
+import ErrorBoundary from './components/ErrorBoundary';
 
-createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
-  </React.StrictMode>
-);
+const container = document.getElementById('root');
+
+if (!container) {
+  // Mensaje claro para debugging si faltara el root en index.html
+  // eslint-disable-next-line no-console
+  console.error('Root element not found. Asegúrate que index.html contiene: <div id="root"></div>');
+} else {
+  createRoot(container).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <BrowserRouter>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BrowserRouter>
+      </ErrorBoundary>
+    </React.StrictMode>
+  );
+}

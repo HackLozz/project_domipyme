@@ -4,8 +4,10 @@ from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.validators import UniqueValidator
+from django.core.exceptions import FieldDoesNotExist
 
 User = get_user_model()
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -22,7 +24,6 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ("email", "password", "first_name", "last_name")
 
     def validate(self, data):
-        # evitar password igual al email o nombre
         pwd = data.get('password', '')
         email = data.get('email', '').lower()
         if email and pwd and email in pwd.lower():
@@ -30,6 +31,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
+        # Usa create_user del manager (asegura hashing y señales)
         password = validated_data.pop("password")
         email = validated_data.pop("email")
         user = User.objects.create_user(email=email, password=password, **validated_data)
@@ -46,7 +48,7 @@ class CustomTokenObtainSerializer(serializers.Serializer):
         request = self.context.get("request", None)
 
         if email and password:
-            # pasamos request para compatibilidad con backends que lo necesiten
+            # Use authenticate with request for backends that need it
             user = authenticate(request=request, username=email, password=password)
             if not user:
                 msg = _("No se pudo autenticar con las credenciales proporcionadas.")
@@ -71,11 +73,25 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     def validate_new_password(self, value):
         validate_password(value)
         return value
-    
 
-# backend/apps/accounts/serializers.py (append)
+
+# ----- AdminUserSerializer seguro: solo incluye campos que existan en el modelo User -----
+def _user_has_field(field_name):
+    try:
+        User._meta.get_field(field_name)
+        return True
+    except FieldDoesNotExist:
+        return False
+
+
+_admin_fields = ["id", "email", "first_name", "last_name", "is_staff"]
+# añadir is_merchant solo si existe
+if _user_has_field("is_merchant"):
+    _admin_fields.append("is_merchant")
+_admin_fields.append("date_joined")
+
+
 class AdminUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'is_staff', 'is_merchant', 'date_joined')
-
+        fields = tuple(_admin_fields)

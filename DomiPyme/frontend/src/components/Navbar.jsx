@@ -1,29 +1,44 @@
-import React, { useEffect, useState } from "react";
+// src/components/Navbar.jsx
+import React, { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthProvider";
 
 export default function Navbar() {
   const nav = useNavigate();
-  const token = localStorage.getItem("access_token");
-
+  const { user, role, logout } = useAuth();
   const [cartCount, setCartCount] = useState(0);
 
-  useEffect(() => {
-    const cart = JSON.parse(localStorage.getItem("dp_cart") || "[]");
-    setCartCount(cart.length);
-
-    // listener para actualizar carrito desde otros componentes
-    window.addEventListener("dp_cart_updated", () => {
+  // handler memoizado para poder removerlo correctamente
+  const handleCartUpdate = useCallback(() => {
+    try {
       const updated = JSON.parse(localStorage.getItem("dp_cart") || "[]");
-      setCartCount(updated.length);
-    });
-
-    return () => window.removeEventListener("dp_cart_updated", () => {});
+      setCartCount(Array.isArray(updated) ? updated.length : 0);
+    } catch {
+      setCartCount(0);
+    }
   }, []);
 
+  useEffect(() => {
+    // inicializar
+    handleCartUpdate();
+
+    // listener global para actualizar carrito
+    window.addEventListener("dp_cart_updated", handleCartUpdate);
+
+    return () => {
+      window.removeEventListener("dp_cart_updated", handleCartUpdate);
+    };
+  }, [handleCartUpdate]);
+
   const handleLogout = () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
-    nav("/login");
+    // llama al logout del contexto si existe
+    if (typeof logout === "function") logout();
+    else {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      localStorage.removeItem("user_data");
+      nav("/login");
+    }
   };
 
   return (
@@ -43,13 +58,32 @@ export default function Navbar() {
           )}
         </Link>
 
-        <Link to="/checkout" style={styles.link}>Checkout</Link>
-        <Link to="/shop/create" style={styles.link}>Crear tienda</Link>
-        <Link to="/shop" style={styles.link}>Ver tienda</Link>
+        {/* Checkout visible solo si hay usuario */}
+        {user ? (
+          <Link to="/checkout" style={styles.link}>Checkout</Link>
+        ) : null}
 
-        {token ? (
+        {/* Crear tienda / Mis tiendas */}
+        {role === "merchant" ? (
+          <Link to="/merchant" style={styles.link}>Mi tienda</Link>
+        ) : (
+          <Link to="/shop/create" style={styles.link}>Crear tienda</Link>
+        )}
+
+        {/* Ver tienda: si merchant usamos su shop slug, si no llevamos a catalog */}
+        {role === "merchant" && user ? (
+          <Link to="/merchant" style={styles.link}>Ver tienda</Link>
+        ) : (
+          <Link to="/catalog" style={styles.link}>Ver tiendas</Link>
+        )}
+
+        {/* sesión */}
+        {user ? (
           <>
-            <Link to="/dashboard" style={styles.link}>Dashboard</Link>
+            {/* Dashboard por rol */}
+            {role === "admin" && <Link to="/admin" style={styles.link}>Panel Admin</Link>}
+            {role === "merchant" && <Link to="/merchant" style={styles.link}>Panel Comercio</Link>}
+            {role === "customer" && <Link to="/dashboard" style={styles.link}>Dashboard</Link>}
 
             <button onClick={handleLogout} style={styles.btn}>
               Cerrar sesión

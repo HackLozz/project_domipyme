@@ -1,16 +1,8 @@
 // src/pages/ShopCreate.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import api from '../components/Api';
 import { useNavigate } from 'react-router-dom';
-
-/**
- * ShopCreate.jsx
- * - Diseño coherente: tarjeta blanca, sombras, inputs con micro-interacción
- * - Animaciones: entrada de página, focus en inputs, botón con feedback
- * - Genera slug automáticamente desde el nombre, editable
- * - Permite subir un logo (preview) y lo convierte a base64 para enviar en payload
- * - Validaciones básicas y manejo de errores/loading
- */
+import { useAuth } from '../context/AuthProvider';
 
 const slugify = (v = '') =>
   v
@@ -23,14 +15,14 @@ const slugify = (v = '') =>
 
 export default function ShopCreate() {
   const nav = useNavigate();
+  const { user } = useAuth();
+  const fileInputRef = useRef(null);
 
-  // form fields
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [desc, setDesc] = useState('');
-  const [address, setAddress] = useState(''); // agregado: estado para dirección
-  const [phone, setPhone] = useState('');     // agregado: estado para teléfono
-  const [logoFile, setLogoFile] = useState(null);
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
   const [logoPreview, setLogoPreview] = useState(null);
   const [logoBase64, setLogoBase64] = useState(null);
 
@@ -40,136 +32,94 @@ export default function ShopCreate() {
   const [slugEdited, setSlugEdited] = useState(false);
 
   useEffect(() => {
-    // animación de entrada
+    const token = localStorage.getItem('access_token');
+    if (!token) nav('/login', { state: { from: '/shop/create' } });
+
     const t = setTimeout(() => setMounted(true), 8);
     return () => clearTimeout(t);
-  }, []);
+  }, [user, nav]);
 
-  // generar slug automáticamente cuando cambie el nombre, si el usuario no lo editó manualmente
   useEffect(() => {
-    if (!slugEdited) {
-      setSlug(slugify(name));
-    }
+    if (!slugEdited) setSlug(slugify(name));
   }, [name, slugEdited]);
 
-  // manejar preview y conversión a base64 del logo
+  /** LOGO HANDLER */
   const onLogoChange = (file) => {
-    setLogoFile(file);
     setError(null);
 
     if (!file) {
       setLogoPreview(null);
       setLogoBase64(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const max = 3 * 1024 * 1024;
+    if (file.size > max) {
+      setError('El logo supera el tamaño máximo de 3 MB.');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (ev) => {
       setLogoPreview(ev.target.result);
-      // ev.target.result es base64 data url
-      setLogoBase64(ev.target.result);
+      setLogoBase64(ev.target.result); // base64 completo
     };
-    reader.onerror = () => {
-      setError('No se pudo leer el archivo de logo.');
-      setLogoPreview(null);
-      setLogoBase64(null);
-    };
+    reader.onerror = () => setError('No se pudo leer la imagen.');
     reader.readAsDataURL(file);
   };
 
+  /** VALIDACIONES */
   const validate = () => {
-    if (!name || name.trim().length < 3) return 'El nombre debe tener al menos 3 caracteres.';
-    if (!slug || slug.trim().length < 2) return 'El slug no puede estar vacío.';
-    if (desc && desc.length > 300) return 'La descripción no puede tener más de 300 caracteres.';
-    // opcional: validación de dirección/teléfono mínima
+    if (!name.trim()) return 'El nombre es requerido.';
+    if (!slug.trim()) return 'El slug no puede estar vacío.';
+    if (desc.length > 300) return 'La descripción no puede superar 300 caracteres.';
     return null;
   };
 
-  const parseErrorMessage = (err) => {
-    // Intenta extraer un mensaje legible desde la respuesta del backend
-    if (!err || !err.response || !err.response.data) {
-      return err?.message || 'Error creando la tienda.';
-    }
-    const data = err.response.data;
-    // Mensaje directo
-    if (data.detail) return data.detail;
-    // Si viene como { field: ["msg"] }
-    if (typeof data === 'object') {
-      const parts = [];
-      for (const k in data) {
-        try {
-          const val = data[k];
-          if (Array.isArray(val)) parts.push(`${k}: ${val.join(' ')}`);
-          else if (typeof val === 'string') parts.push(`${k}: ${val}`);
-          else parts.push(`${k}: ${JSON.stringify(val)}`);
-        } catch (e) {
-          // fallback
-        }
-      }
-      if (parts.length) return parts.join(' | ');
-    }
-    return 'Error creando la tienda. Revisa la consola para más detalles.';
-  };
-
+  /** SUBMIT HANDLER */
   const submit = async (e) => {
     e.preventDefault();
     setError(null);
 
     const v = validate();
-    if (v) {
-      setError(v);
-      return;
-    }
+    if (v) return setError(v);
+
+    const token = localStorage.getItem('access_token');
+    if (!token)
+      return nav('/login', { state: { from: '/shop/create' } });
 
     setLoading(true);
+
     try {
-      // payload: enviamos los campos que el backend espera
       const payload = {
         name: name.trim(),
         description: desc.trim(),
         slug: slugify(slug),
-        address: address?.trim() || '',
-        phone: phone?.trim() || '',
-        // si tu backend no soporta base64 image, ignora este campo en el servidor
-        image: logoBase64 || null,
+        address: address.trim(),
+        phone: phone.trim(),
+        image: logoBase64,
       };
 
       const res = await api.post('shops/', payload);
 
-      // prioridad: usar slug devuelto por el backend (si existe)
-      let resSlug = res?.data?.slug ?? null;
-      // si no hay slug pero existe id, hacemos GET para conseguir el slug (evita navegar con id)
-      if (!resSlug && res?.data?.id) {
-        try {
-          const byId = await api.get(`shops/${res.data.id}/`);
-          resSlug = byId?.data?.slug ?? String(res.data.id);
-        } catch (e) {
-          // si falla la petición por id, fallback al slug generado localmente (payload.slug)
-          console.warn('No se pudo obtener slug por id, se usará slug local', e);
-          resSlug = payload.slug;
-        }
-      }
+      let finalSlug = res?.data?.slug || payload.slug;
 
-      // Finalmente, navegar a la URL por slug
-      if (!resSlug) resSlug = payload.slug || '';
-      // Si por seguridad no hay slug, no navegar y mostrar error
-      if (!resSlug) {
-        setError('No se pudo determinar la URL de la tienda creada.');
-      } else {
-        nav(`/shop/${resSlug}`);
-      }
-    } catch (err) {
-      console.error('Error creando tienda:', err);
-
-      // Si es 401, redirigir a login (usuario no autenticado)
-      const status = err?.response?.status;
-      if (status === 401 || status === 403) {
-        // opcional: enviar al login y preservar la ruta de retorno
-        nav('/login', { state: { from: '/shop/create' } });
+      if (!finalSlug) {
+        setError("La tienda se creó, pero no se pudo obtener su URL. Verifica en administración.");
         return;
       }
 
-      const msg = parseErrorMessage(err);
+      // REDIRECCIÓN DIRECTA A LA TIENDA
+      nav(`/shop/${finalSlug}`);
+    } catch (err) {
+      console.error("Error creando tienda:", err);
+
+      const msg =
+        err?.response?.data?.detail ||
+        JSON.stringify(err?.response?.data) ||
+        "Error creando la tienda.";
+
       setError(msg);
     } finally {
       setLoading(false);
@@ -181,39 +131,29 @@ export default function ShopCreate() {
       <style>{`
         .page-enter { animation: pageEnter 300ms ease both; }
         @keyframes pageEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-        .card-enter { animation: cardEnter 360ms cubic-bezier(.2,.9,.2,1) both; }
-        @keyframes cardEnter { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: translateY(0) } }
-
-        .input-field { transition: box-shadow 160ms ease, transform 140ms ease; }
-        .input-field:focus { outline: none; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(17,24,39,0.06); }
-
-        .btn-primary { transition: transform 160ms ease, opacity 140ms ease; }
-        .btn-primary:active { transform: translateY(1px) scale(0.997); }
       `}</style>
 
       <div style={styles.container}>
-        <div style={{ ...styles.card, ...(mounted ? {} : { opacity: 0 }) }} className="card-enter">
+        <div style={styles.card}>
           <h2 style={{ marginTop: 0 }}>Crear Tienda</h2>
 
           <form onSubmit={submit}>
+            {/* NAME */}
             <div style={styles.field}>
               <label style={styles.label}>Nombre</label>
               <input
-                className="input-field"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Nombre de la tienda"
                 style={styles.input}
                 disabled={loading}
               />
-              <small style={styles.hint}>El nombre será visible públicamente.</small>
             </div>
 
+            {/* SLUG */}
             <div style={styles.field}>
-              <label style={styles.label}>Slug (URL)</label>
+              <label style={styles.label}>Slug</label>
               <input
-                className="input-field"
                 value={slug}
                 onChange={(e) => {
                   setSlug(e.target.value);
@@ -223,103 +163,88 @@ export default function ShopCreate() {
                 style={styles.input}
                 disabled={loading}
               />
-              <small style={styles.hint}>Será usado en la URL: /shop/&lt;slug&gt;</small>
             </div>
 
+            {/* DESC */}
             <div style={styles.field}>
               <label style={styles.label}>Descripción</label>
               <textarea
                 value={desc}
                 onChange={(e) => setDesc(e.target.value)}
-                placeholder="Descripción corta de la tienda"
-                style={{ ...styles.input, minHeight: 96, resize: 'vertical' }}
+                placeholder="Descripción corta"
+                style={{ ...styles.input, minHeight: 90 }}
                 disabled={loading}
               />
-              <div style={styles.rowBetween}>
-                <small style={styles.hint}>Máx. 300 caracteres</small>
-                <small style={{ color: desc.length > 300 ? '#ef4444' : '#6b7280' }}>
-                  {desc.length}/300
-                </small>
-              </div>
             </div>
 
+            {/* ADDRESS */}
             <div style={styles.field}>
               <label style={styles.label}>Dirección</label>
               <input
-                className="input-field"
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
-                placeholder="Dirección de la tienda"
                 style={styles.input}
                 disabled={loading}
               />
             </div>
 
+            {/* PHONE */}
             <div style={styles.field}>
               <label style={styles.label}>Teléfono</label>
               <input
-                className="input-field"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Teléfono de contacto"
                 style={styles.input}
                 disabled={loading}
               />
             </div>
 
+            {/* LOGO */}
             <div style={styles.field}>
               <label style={styles.label}>Logo (opcional)</label>
+
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <label style={styles.uploadLabel}>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     style={{ display: 'none' }}
-                    onChange={(e) => onLogoChange(e.target.files?.[0] ?? null)}
+                    onChange={(e) =>
+                      onLogoChange(e.target.files?.[0] ?? null)
+                    }
                     disabled={loading}
                   />
                   Subir logo
                 </label>
 
                 {logoPreview ? (
-                  <img src={logoPreview} alt="Logo preview" style={{ width: 96, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(0,0,0,0.06)' }} />
+                  <img
+                    src={logoPreview}
+                    alt="preview"
+                    style={{
+                      width: 96,
+                      height: 64,
+                      borderRadius: 8,
+                      objectFit: 'cover',
+                      border: '1px solid #ddd',
+                    }}
+                  />
                 ) : (
-                  <div style={{ width: 96, height: 64, borderRadius: 8, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af' }}>
-                    Sin logo
-                  </div>
-                )}
-
-                {logoPreview && (
-                  <button
-                    type="button"
-                    onClick={() => onLogoChange(null)}
-                    style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer' }}
-                  >
-                    Eliminar
-                  </button>
+                  <div style={styles.noLogo}>Sin logo</div>
                 )}
               </div>
-              <small style={styles.hint}>Formato .png/.jpg. Si no subes, puedes añadir luego desde editing.</small>
             </div>
 
+            {/* ERROR */}
             {error && <div style={styles.errorBox}>{error}</div>}
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+            {/* BUTTONS */}
+            <div style={{ display: 'flex', gap: 12 }}>
               <button
                 type="submit"
                 disabled={loading}
-                className="btn-primary"
-                style={{
-                  padding: '10px 14px',
-                  background: '#111827',
-                  color: '#fff',
-                  borderRadius: 10,
-                  border: 'none',
-                  cursor: loading ? 'default' : 'pointer',
-                  fontWeight: 700,
-                  opacity: loading ? 0.8 : 1,
-                  boxShadow: loading ? 'inset 0 0 6px rgba(0,0,0,0.06)' : '0 6px 18px rgba(17,24,39,0.06)',
-                }}
+                style={styles.btnPrimary}
               >
                 {loading ? 'Creando...' : 'Crear tienda'}
               </button>
@@ -327,14 +252,7 @@ export default function ShopCreate() {
               <button
                 type="button"
                 onClick={() => nav('/catalog')}
-                disabled={loading}
-                style={{
-                  padding: '10px 12px',
-                  background: 'transparent',
-                  border: '1px solid rgba(17,24,39,0.06)',
-                  borderRadius: 10,
-                  cursor: 'pointer',
-                }}
+                style={styles.btnSecondary}
               >
                 Cancelar
               </button>
@@ -346,22 +264,65 @@ export default function ShopCreate() {
   );
 }
 
-/* ---------- estilos ---------- */
+/** ESTILOS */
 const styles = {
-  page: { padding: 20, display: 'flex', justifyContent: 'center', fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial' },
-  container: { width: '100%', maxWidth: 820 },
+  page: {
+    padding: 20,
+    display: 'flex',
+    justifyContent: 'center',
+    fontFamily: 'Inter, sans-serif',
+  },
+  container: { width: '100%', maxWidth: 760 },
   card: {
-    padding: 18,
+    padding: 20,
     borderRadius: 12,
     background: '#fff',
-    boxShadow: '0 6px 24px rgba(2,6,23,0.04)',
-    border: '1px solid rgba(15,23,42,0.03)',
+    boxShadow: '0 6px 24px rgba(0,0,0,0.04)',
   },
-  field: { marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 8 },
+  field: { marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 6 },
   label: { fontWeight: 700 },
-  input: { padding: 10, borderRadius: 8, border: '1px solid #e6e9ef', width: '100%' },
-  hint: { color: '#6b7280', fontSize: 12 },
-  uploadLabel: { padding: '8px 10px', borderRadius: 8, background: '#111827', color: '#fff', cursor: 'pointer', fontWeight: 700 },
-  errorBox: { marginTop: 8, color: '#fff', background: '#ef4444', padding: 10, borderRadius: 8 },
-  rowBetween: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  input: {
+    padding: 10,
+    borderRadius: 8,
+    border: '1px solid #e5e7eb',
+  },
+  uploadLabel: {
+    padding: '8px 12px',
+    background: '#111827',
+    borderRadius: 8,
+    color: '#fff',
+    cursor: 'pointer',
+  },
+  noLogo: {
+    width: 96,
+    height: 64,
+    background: '#f3f4f6',
+    borderRadius: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#6b7280',
+  },
+  errorBox: {
+    marginTop: 8,
+    padding: 10,
+    background: '#ef4444',
+    color: '#fff',
+    borderRadius: 8,
+  },
+  btnPrimary: {
+    padding: '10px 14px',
+    background: '#111827',
+    color: '#fff',
+    borderRadius: 10,
+    cursor: 'pointer',
+    border: 'none',
+    fontWeight: 700,
+  },
+  btnSecondary: {
+    padding: '10px 12px',
+    border: '1px solid #ddd',
+    borderRadius: 10,
+    cursor: 'pointer',
+  },
 };

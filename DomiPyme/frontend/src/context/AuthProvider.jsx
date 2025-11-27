@@ -9,7 +9,6 @@ function safeParseJwt(token) {
   try {
     const parts = token.split('.');
     if (parts.length < 2) return null;
-    // base64url -> base64
     const payload = parts[1].replace(/-/g, '+').replace(/_/g, '/');
     const json = decodeURIComponent(
       atob(payload)
@@ -30,7 +29,23 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const nav = useNavigate();
 
+  const persistUser = (u) => {
+    try {
+      localStorage.setItem('user_data', JSON.stringify(u || null));
+    } catch {}
+  };
+
+  const clearAuth = () => {
+    try {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      localStorage.removeItem('user_data');
+    } catch {}
+    setUser(null);
+  };
+
   const loadUser = useCallback(async () => {
+    setLoading(true);
     const access = localStorage.getItem('access_token');
     if (!access) {
       setUser(null);
@@ -39,57 +54,129 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      // Intentamos llamar al endpoint "me" del backend (si existe)
       const res = await api.get('auth/me/');
-      setUser(res.data);
+      const u = res.data;
+      const normalized = {
+        id: u.id,
+        email: u.email,
+        first_name: u.first_name || '',
+        last_name: u.last_name || '',
+        role: u.is_staff ? 'admin' : (u.is_merchant ? 'merchant' : 'customer'),
+        is_staff: !!u.is_staff,
+        is_merchant: !!u.is_merchant,
+      };
+      setUser(normalized);
+      persistUser(normalized);
+      setLoading(false);
+      return;
     } catch (err) {
-      // Si falla (404, 405, 500 o endpoint no existe), intentamos decodificar el JWT como fallback
+      // Si auth/me devuelve 401 -> token inválido/expirado -> limpiamos estado y salimos silenciosamente
+      const status = err?.response?.status;
+      if (status === 401 || status === 403) {
+        // limpiamos tokens y user para evitar bucles y errores en consola
+        clearAuth();
+        setLoading(false);
+        return;
+      }
+
+      // fallback: intentamos parsear el token (si no es 401)
       const parsed = safeParseJwt(access);
       if (parsed) {
-        // Normalmente el payload puede traer email, sub, exp, etc.
-        const minimalUser = {
+        const normalized = {
+          id: parsed.uid || parsed.sub || null,
           email: parsed.email || parsed.sub || null,
-          sub: parsed.sub || null,
-          exp: parsed.exp || null,
-          // agrega campos adicionales si los conoces en tu token
+          first_name: parsed.name ? String(parsed.name).split(' ')[0] : '',
+          last_name: parsed.name ? String(parsed.name).split(' ').slice(1).join(' ') : '',
+          role: parsed.role || (parsed.is_staff ? 'admin' : (parsed.is_merchant ? 'merchant' : 'customer')),
+          is_staff: !!parsed.is_staff,
+          is_merchant: !!parsed.is_merchant,
         };
-        setUser(minimalUser);
-      } else {
-        setUser(null);
+        setUser(normalized);
+        persistUser(normalized);
+        setLoading(false);
+        return;
       }
-    } finally {
+
+      // no pudimos autenticar ni parsear -> limpiamos
+      clearAuth();
       setLoading(false);
+      return;
     }
   }, []);
 
   useEffect(() => {
+    try {
+      const s = localStorage.getItem('user_data');
+      if (s) {
+        const parsed = JSON.parse(s);
+        setUser(parsed);
+      }
+    } catch {}
+
     loadUser();
   }, [loadUser]);
 
-  const login = async (email, password, redirectTo = '/dashboard') => {
+  const login = async (email, password) => {
     try {
-      // ejemplo para simplejwt
-      const res = await api.post('auth/token/', { email, password });
-      localStorage.setItem('access_token', res.data.access);
-      localStorage.setItem('refresh_token', res.data.refresh);
-      // forzar que api use el nuevo token por defecto
-      api.defaults.headers.common['Authorization'] = `Bearer ${res.data.access}`;
+      let res;
+      try {
+        res = await api.post('auth/login/', { email, password });
+      } catch (e) {
+        res = await api.post('auth/token/', { email, password });
+      }
 
-      // recargar user (intentará auth/me y si no existe usará JWT)
-      await loadUser();
+      const access = res.data.access ?? res.data.access_token ?? res.data.accessToken ?? null;
+      const refresh = res.data.refresh ?? res.data.refresh_token ?? res.data.refreshToken ?? null;
 
-      // navegar solo si estamos en un contexto de router (sí lo estarás)
-      nav(redirectTo);
+      if (!access || !refresh) {
+        throw new Error('No se obtuvieron tokens del servidor');
+      }
+
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+
+      let finalUser = null;
+      if (res.data.user) {
+        const u = res.data.user;
+        finalUser = {
+          id: u.id,
+          email: u.email,
+          first_name: u.first_name || '',
+          last_name: u.last_name || '',
+          role: u.is_staff ? 'admin' : (u.is_merchant ? 'merchant' : 'customer'),
+          is_staff: !!u.is_staff,
+          is_merchant: !!u.is_merchant,
+        };
+      } else {
+        const parsed = safeParseJwt(access);
+        finalUser = {
+          id: parsed?.uid ?? parsed?.sub ?? null,
+          email: parsed?.email ?? null,
+          first_name: parsed?.name ? String(parsed.name).split(' ')[0] : '',
+          last_name: parsed?.name ? String(parsed.name).split(' ').slice(1).join(' ') : '',
+          role: parsed?.role ?? (parsed?.is_staff ? 'admin' : (parsed?.is_merchant ? 'merchant' : 'customer')),
+          is_staff: !!parsed?.is_staff,
+          is_merchant: !!parsed?.is_merchant,
+        };
+      }
+
+      setUser(finalUser);
+      persistUser(finalUser);
+
+      if (finalUser.role === 'admin') nav('/admin');
+      else if (finalUser.role === 'merchant') nav('/merchant');
+      else nav('/dashboard');
+
+      return finalUser;
     } catch (err) {
-      // Re-lanzar error para que el componente que llama (Login) lo maneje
+      clearAuth();
       throw err;
     }
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    setUser(null);
+    clearAuth();
     nav('/login');
   };
 

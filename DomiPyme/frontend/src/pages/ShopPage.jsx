@@ -2,15 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../components/Api';
-import axios from 'axios'; // necesario para isCancel (detectar cancelaciones)
-
-/**
- * ShopPage.jsx
- * - Carga tienda por slug y luego productos por shop id
- * - Skeletons mientras carga
- * - Animaciones suaves en cards y al agregar al carrito
- * - Sincroniza dp_cart en localStorage y evita duplicados (aumenta qty si existe)
- */
+import axios from 'axios'; // para isCancel
 
 const ANIM_MS = 300;
 
@@ -28,8 +20,8 @@ export default function ShopPage() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [toast, setToast] = useState(null); // mensaje corto al agregar
-  const [adding, setAdding] = useState({}); // { productUid: true } para animar botón
+  const [toast, setToast] = useState(null);
+  const [adding, setAdding] = useState({});
   const mountedRef = useRef(true);
   const toastTimerRef = useRef(null);
 
@@ -37,70 +29,131 @@ export default function ShopPage() {
     mountedRef.current = true;
     const controller = new AbortController();
 
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      setShop(null);
-      setProducts([]);
-      try {
-        // 1) Pedimos la shop por slug (endpoint implementado en backend: /api/shops/slug/:slug/)
-        const shopResp = await api.get(`shops/slug/${encodeURIComponent(slug)}/`, {
-          signal: controller.signal,
-        });
+    const isCanceled = (err) =>
+      !err
+        ? false
+        : err?.name === 'CanceledError' ||
+          err?.name === 'AbortError' ||
+          err?.code === 'ERR_CANCELED' ||
+          (axios && axios.isCancel && axios.isCancel(err));
 
-        // Normalizar shop (soportar diferentes shapes)
-        const shopData = shopResp?.data ?? null;
-        if (!shopData) throw new Error('Respuesta inválida del servidor (shop).');
-
-        if (!mountedRef.current) return;
-        setShop(shopData);
-
-        // 2) Pedir productos por shop id (endpoints: /api/products/?shop=<id>)
-        const shopId = firstDefined(shopData.id, shopData.pk, shopData._id, null);
-        if (!shopId) {
-          // Si no hay id, no intentamos cargar productos
-          setProducts([]);
-          return;
-        }
-
-        const prodResp = await api.get(`products/?shop=${encodeURIComponent(shopId)}`, {
-          signal: controller.signal,
-        });
-
-        if (!mountedRef.current) return;
-
-        // Manejar paginación (results) o lista directa
-        const prodData = prodResp?.data;
-        const resolvedProducts = Array.isArray(prodData)
-          ? prodData
-          : Array.isArray(prodData?.results)
-            ? prodData.results
-            : prodData?.results ?? prodData?.items ?? prodData?.products ?? [];
-
-        setProducts(resolvedProducts);
-      } catch (e) {
-        // Detectar cancel/abort de axios
-        const isCanceled = (err) =>
-          !err
-            ? false
-            : err?.name === 'CanceledError' ||
-              err?.name === 'AbortError' ||
-              err?.code === 'ERR_CANCELED' ||
-              (axios && axios.isCancel && axios.isCancel(err));
-
-        if (isCanceled(e)) {
-          // request cancelado por abort -> no hacer nada
-          return;
-        }
-
-        console.error('Shop load error', e);
-        // intentar extraer mensaje del backend
-        const serverMessage = e?.response?.data?.detail || e?.response?.data || e?.message;
-        setError(typeof serverMessage === 'string' ? serverMessage : 'No se pudo cargar la tienda. Intenta recargar.');
-      } finally {
-        if (mountedRef.current) setLoading(false);
+    const normalizeShopFromResponse = (raw) => {
+      // raw puede ser objeto, {results: [...]}, array, {data: {...}} etc.
+      if (!raw) return null;
+      if (Array.isArray(raw)) {
+        // buscar primer que coincida con slug (si disponible)
+        return raw.length > 0 ? raw[0] : null;
       }
+      if (raw.results && Array.isArray(raw.results)) {
+        // list response -> tomar primer elemento o el objeto entero si solo uno
+        if (raw.results.length === 1) return raw.results[0];
+        // si viene una lista (multiples shops) intentar buscar por slug
+        if (slug) {
+          const found = raw.results.find((s) => String(firstDefined(s.slug, s.id, s.pk)).toLowerCase() === String(slug).toLowerCase());
+          return found || null;
+        }
+        return raw.results[0] || null;
+      }
+      if (raw.data) return normalizeShopFromResponse(raw.data);
+      // si es objeto directo
+      return raw;
     };
+
+    const normalizeProductsFromResponse = (raw) => {
+      if (!raw) return [];
+      if (Array.isArray(raw)) return raw;
+      if (raw.results && Array.isArray(raw.results)) return raw.results;
+      if (raw.items && Array.isArray(raw.items)) return raw.items;
+      if (raw.products && Array.isArray(raw.products)) return raw.products;
+      if (raw.data) return normalizeProductsFromResponse(raw.data);
+      // fallback: si raw es objeto con keys numericas -> transformar
+      return [];
+    };
+
+    const load = async () => {
+    setLoading(true);
+    setError(null);
+    setShop(null);
+    setProducts([]);
+    try {
+      // Intentamos traer shop por slug
+      let shopResp;
+      try {
+        shopResp = await api.get(`shops/slug/${encodeURIComponent(slug)}/`, {
+          signal: controller.signal,
+        });
+      } catch (errSlug) {
+        // Si fue 404 => intentamos fallback de búsqueda por name/slug en listado
+        const status = errSlug?.response?.status;
+        if (status === 404) {
+          console.warn('Shop detail returned 404, intentando fallback por listado (search).', errSlug?.response?.data);
+          // Intentamos buscar por slug/name en list endpoint
+          const listResp = await api.get(`shops/?search=${encodeURIComponent(slug)}`, { signal: controller.signal });
+          const candidate = normalizeShopFromResponse(listResp?.data);
+          if (candidate) {
+            if (!mountedRef.current) return;
+            setShop(candidate);
+          } else {
+            // No se encontró en listado
+            throw errSlug; // se propaga al catch externo para manejar mensaje de error
+          }
+          // luego seguimos a cargar productos usando candidate
+        } else {
+          // No es 404 -> propagar error al outer catch
+          throw errSlug;
+        }
+      }
+    
+      // Si shopResp existe (200), procesarla
+      let shopData = null;
+      if (shopResp && shopResp.data) {
+        shopData = normalizeShopFromResponse(shopResp.data);
+        if (!shopData) {
+          // Si no se pudo normalizar el response, intentar fallback list
+          const listResp = await api.get(`shops/?search=${encodeURIComponent(slug)}`, { signal: controller.signal });
+          const candidate = normalizeShopFromResponse(listResp?.data);
+          if (candidate) {
+            if (!mountedRef.current) return;
+            setShop(candidate);
+          } else {
+            throw new Error('Tienda no encontrada por slug ni en listado.');
+          }
+        } else {
+          if (!mountedRef.current) return;
+          setShop(shopData);
+        }
+      }
+    
+      // Determinar shop id para productos:
+      const resolved = shopData || (/* if setShop was from candidate fallback above, read from state */ (mountedRef.current && (document ? null : null)));
+      // Simpler: get current shop from state (prefer state if set), else use shopData
+      const currentShop = shopData || (mountedRef.current ? (shop || null) : null);
+      const shopId = String(firstDefined(currentShop?.id, currentShop?.pk, currentShop?._id, currentShop?.shop_id, null));
+      if (!shopId) {
+        // no hay shop id => no cargamos productos
+        setProducts([]);
+        return;
+      }
+    
+      const prodResp = await api.get(`products/?shop=${encodeURIComponent(shopId)}`, {
+        signal: controller.signal,
+      });
+      const resolvedProducts = normalizeProductsFromResponse(prodResp?.data);
+      if (!mountedRef.current) return;
+      setProducts(resolvedProducts);
+    } catch (e) {
+      if (isCanceled(e)) {
+        return;
+      }
+      console.error('Shop load error', e);
+      const serverMessage = e?.response?.data?.detail || e?.response?.data || e?.message;
+      setError(typeof serverMessage === 'string' ? serverMessage : 'No se pudo cargar la tienda. Intenta recargar.');
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  };
+  
+
 
     if (slug) load();
     else {
@@ -126,11 +179,10 @@ export default function ShopPage() {
 
   const addToCart = (product) => {
     if (!product) return;
-    // animación en el botón - usar key consistente string
-    const key = String(firstDefined(product.id, product.pk, makeUid('p')));
+    const productId = String(firstDefined(product.id, product.pk, product._id, '') || makeUid('nop'));
+    const key = productId;
     setAdding((s) => ({ ...s, [key]: true }));
 
-    // leer carrito actual
     let raw = [];
     try {
       raw = JSON.parse(localStorage.getItem('dp_cart') || '[]');
@@ -139,10 +191,9 @@ export default function ShopPage() {
       raw = [];
     }
 
-    // buscar si ya existe (comparar por product_id y shop)
-    const shopId = String(firstDefined(shop?.id, shop?.pk, ''));
+    const shopId = String(firstDefined(shop?.id, shop?.pk, shop?._id, '')) || null;
     const existingIndex = raw.findIndex(
-      (it) => String(it.product_id) === String(firstDefined(product.id, product.pk, '')) && String(it.shop_id) === shopId
+      (it) => String(it.product_id) === productId && String(it.shop_id) === shopId
     );
 
     if (existingIndex >= 0) {
@@ -152,16 +203,16 @@ export default function ShopPage() {
       raw[existingIndex].image = firstDefined(product.image, product.photo, raw[existingIndex].image);
     } else {
       const item = {
-        uid: makeUid(`p${firstDefined(product.id, product.pk, '')}`),
-        product_id: firstDefined(product.id, product.pk, null),
-        shop_id: shopId || null,
+        uid: makeUid(`p${productId}`),
+        product_id: productId,
+        shop_id: shopId,
         name: firstDefined(product.name, product.title, 'Producto'),
         price: Number(firstDefined(product.price, product.unit_price, product.amount, 0)),
         qty: 1,
         image: firstDefined(product.image, product.photo, null),
         raw: product,
       };
-      raw.unshift(item); // añadir al inicio
+      raw.unshift(item);
     }
 
     try {
@@ -170,12 +221,10 @@ export default function ShopPage() {
       console.error('Error saving cart to localStorage', e);
     }
 
-    // mostrar toast breve
     setToast(`${firstDefined(product.name, product.title, 'Producto')} añadido al carrito`);
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 1600);
 
-    // remover animación de agregar tras ANIM_MS
     setTimeout(() => {
       setAdding((s) => {
         const copy = { ...s };
@@ -261,7 +310,7 @@ export default function ShopPage() {
                   <div style={styles.imageWrap}>
                     <img
                       src={firstDefined(p.image, p.photo, placeholder)}
-                      alt={p.name || p.title}
+                      alt={p.name || p.title || 'Producto'}
                       style={styles.image}
                       onError={(e) => (e.currentTarget.src = placeholder)}
                     />
@@ -286,7 +335,7 @@ export default function ShopPage() {
                         {isAdding ? 'Añadido' : 'Agregar'}
                       </button>
 
-                      <Link to={`/shop/${firstDefined(shop.slug, shop.id)}/product/${p.id}`} style={styles.viewBtn}>Ver</Link>
+                      <Link to={`/product/${firstDefined(p.id, p.pk)}`} style={styles.viewBtn}>Ver</Link>
                     </div>
                   </div>
                 </li>
@@ -296,10 +345,8 @@ export default function ShopPage() {
         )}
       </main>
 
-      {/* toast pequeño */}
       {toast && <div style={styles.toast}>{toast}</div>}
 
-      {/* css animations */}
       <style>{`
         .product-card { transition: transform ${ANIM_MS}ms ease, box-shadow ${ANIM_MS}ms ease; }
         .product-card:hover { transform: translateY(-6px); box-shadow: 0 10px 26px rgba(2,6,23,0.06); }
@@ -308,7 +355,7 @@ export default function ShopPage() {
   );
 }
 
-/* ---------- estilos ---------- */
+/* ---------- estilos (sin cambios funcionales) ---------- */
 const styles = {
   container: { padding: 20, maxWidth: 1100, margin: '0 auto', fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
@@ -375,7 +422,6 @@ const styles = {
     opacity: 0.98
   },
 
-  // skeletons / misc
   headerSkeleton: { marginBottom: 12 },
   skelTitle: { height: 20, width: 240, marginBottom: 8, borderRadius: 6, background: '#f3f4f6' },
   skelSubtitle: { height: 12, width: 360, borderRadius: 6, background: '#f3f4f6' },

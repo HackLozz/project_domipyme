@@ -13,6 +13,10 @@ class Shop(models.Model):
     description = models.TextField(blank=True)
     address = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=50, blank=True)
+
+    # Nuevo: flag que controla visibilidad pública / estado de la tienda
+    active = models.BooleanField(default=True)
+
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -26,11 +30,12 @@ class Shop(models.Model):
             base = slugify(self.name)[:50]
             slug = base
             count = 1
-            while Shop.objects.filter(slug=slug).exists():
+            while Shop.objects.filter(slug=slug).exclude(pk=getattr(self, 'pk', None)).exists():
                 slug = f"{base}-{count}"
                 count += 1
             self.slug = slug
         super().save(*args, **kwargs)
+
 
 class Category(models.Model):
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="categories")
@@ -38,6 +43,7 @@ class Category(models.Model):
 
     def __str__(self):
         return f"{self.shop.name} - {self.name}"
+
 
 class Product(models.Model):
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="products")
