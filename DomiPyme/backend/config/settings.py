@@ -1,6 +1,5 @@
 import os
 from pathlib import Path
-from datetime import timedelta
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -96,18 +95,10 @@ STATIC_URL = "/static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Custom user model
+# AUTH
 AUTH_USER_MODEL = "accounts.User"
 
-# CORS
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",  # Vite dev server
-    "http://localhost:3000",
-]
-
-CORS_ALLOW_CREDENTIALS = True
-
-# Django Rest Framework & JWT
+# DRF + SimpleJWT
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -118,6 +109,14 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.LimitOffsetPagination",
     "PAGE_SIZE": 12,
 }
+
+# CORS
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Vite dev server
+    "http://localhost:3000",
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 from datetime import timedelta
 from rest_framework_simplejwt.settings import api_settings as jwt_settings
@@ -152,6 +151,7 @@ if EMAIL_BACKEND_ENV in ("smtp", "smtp_backend", "smtplib"):
     EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "1") in ("1", "true", "True")
     EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
     EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+    DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 else:
     # Default: dev console backend (prints emails in runserver output)
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
