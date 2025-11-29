@@ -5,7 +5,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
-  const uid = searchParams.get('uid');
+  const uid = searchParams.get('uid');    // uid codificado en base64 (uidb64)
   const token = searchParams.get('token');
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState(null);
@@ -31,20 +31,31 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      // Mantengo exactamente el endpoint y payload original
+      // IMPORTANTE: enviamos 'uid' y 're_new_password' para coincidir con el backend
       const resp = await api.post('auth/password-reset-confirm/', {
-        uidb64: uid,
+        uid,
         token,
         new_password: password,
+        re_new_password: password,
       });
 
+      // Mostrar mensaje y redirigir (replace evita volver con back)
       setMsg('Contraseña cambiada correctamente. Serás redirigido al login.');
-      // mantener comportamiento: redirigir después de 2s
-      setTimeout(() => nav('/login'), 2000);
+      setTimeout(() => nav('/login', { replace: true }), 2000);
     } catch (err) {
-      console.error('ResetPassword error:', err);
-      const serverMsg = err?.response?.data?.detail || 'Error al restablecer contraseña.';
-      setError(serverMsg);
+      // Mejor trazabilidad en consola y en UI
+      const serverData = err?.response?.data;
+      console.error('ResetPassword error:', {
+        message: err?.message,
+        status: err?.response?.status,
+        data: serverData,
+      });
+
+      // Prioriza mensajes detallados enviados por el servidor
+      const serverMsg = serverData?.detail || serverData?.error || serverData || 'Error al restablecer contraseña.';
+      // Si serverMsg es objeto, intentar extraer un string legible
+      const finalMsg = typeof serverMsg === 'string' ? serverMsg : JSON.stringify(serverMsg);
+      setError(finalMsg);
     } finally {
       setLoading(false);
     }
@@ -77,13 +88,14 @@ export default function ResetPassword() {
         <div style={styles.card}>
           <h3 style={{ marginTop: 0 }}>Restablecer contraseña</h3>
 
-          {msg && <div role="status" style={styles.success}>{msg}</div>}
-          {error && <div role="alert" style={styles.error}>{error}</div>}
+          {msg && <div role="status" aria-live="polite" style={styles.success}>{msg}</div>}
+          {error && <div role="alert" aria-live="assertive" style={styles.error}>{error}</div>}
 
           <form onSubmit={handleSubmit} style={styles.form} noValidate>
             <div style={styles.field}>
-              <label style={styles.label}>Nueva contraseña</label>
+              <label style={styles.label} htmlFor="new-password">Nueva contraseña</label>
               <input
+                id="new-password"
                 type="password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(null); setMsg(null); }}
@@ -93,15 +105,17 @@ export default function ResetPassword() {
                 minLength={8}
                 disabled={loading}
                 aria-required="true"
+                autoFocus
+                aria-describedby="pw-hint"
               />
-              <small style={styles.hint}>Mínimo 8 caracteres.</small>
+              <small id="pw-hint" style={styles.hint}>Mínimo 8 caracteres.</small>
             </div>
 
             <button
               type="submit"
               className="btn-primary"
-              style={{ ...styles.button, opacity: loading ? 0.85 : 1 }}
-              disabled={loading}
+              style={{ ...styles.button, opacity: (loading || password.length < 8) ? 0.85 : 1 }}
+              disabled={loading || password.length < 8}
               aria-busy={loading}
             >
               {loading ? 'Procesando...' : 'Cambiar contraseña'}
