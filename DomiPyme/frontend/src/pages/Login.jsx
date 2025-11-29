@@ -1,5 +1,5 @@
 // src/pages/Login.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 
@@ -11,6 +11,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
 
+  const isMountedRef = useRef(true);
   const nav = useNavigate();
   const location = useLocation();
   const auth = useAuth();
@@ -19,27 +20,64 @@ export default function Login() {
   useEffect(() => {
     // animación de entrada ligera
     const t = setTimeout(() => setMounted(true), 8);
-    return () => clearTimeout(t);
+
+    // marcar mounted para evitar setState luego del unmount
+    isMountedRef.current = true;
+    return () => {
+      clearTimeout(t);
+      isMountedRef.current = false;
+    };
   }, []);
 
   const submit = async (e) => {
     e.preventDefault();
+    if (loading) return;
+    if (!email) {
+      setError('Ingrese un email válido');
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
     try {
       // Usa la función login del contexto (evita duplicar peticiones)
+      // Conservé la firma que usabas: auth.login(email, password, from, { remember })
       await auth.login(email.trim(), password, from, { remember });
-      // auth.login redirige internamente si implementado así
+
+      // Si auth.login no se encarga de redirigir, haremos la navegación aquí.
+      // Evitamos navegar si ya estamos en la ruta destino para no crear loops.
+      const currentPath = location.pathname;
+      if (isMountedRef.current && currentPath !== from) {
+        nav(from, { replace: true });
+      }
+      // Si auth.login ya redirigió, la navegación será ignorada (no causa error).
     } catch (err) {
-      // intenta obtener un mensaje de error del servidor si existe
-      const msg =
-        err?.response?.data?.detail ||
-        err?.response?.data?.error ||
-        err?.message ||
-        'Credenciales inválidas';
-      setError(msg);
-      setLoading(false);
+      // intenta obtener un mensaje de error del servidor si existe (defensivo)
+      let msg = 'Credenciales inválidas';
+      try {
+        if (err?.response?.data) {
+          const data = err.response.data;
+          msg =
+            data.detail ||
+            data.error ||
+            (typeof data === 'string' ? data : msg);
+        } else if (err?.message) {
+          msg = err.message;
+        }
+      } catch (parseErr) {
+        // si algo falla al parsear, mantenemos mensaje por defecto
+      }
+
+      if (isMountedRef.current) {
+        setError(msg);
+        setLoading(false);
+      }
+    } finally {
+      // Solo actualizar loading si el componente sigue montado
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

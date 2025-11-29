@@ -1,18 +1,24 @@
 // src/pages/ForgotPassword.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import api from '../components/Api';
 import { Link } from 'react-router-dom';
 
 export default function ForgotPassword() {
   const [mounted, setMounted] = useState(false);
+  const isMountedRef = useRef(true);
   const [email, setEmail] = useState('');
   const [msg, setMsg] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // micro-delay solo para animación; conserva tu UX
     const t = setTimeout(() => setMounted(true), 8);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      // marcar como desmontado para evitar setState después del unmount
+      isMountedRef.current = false;
+    };
   }, []);
 
   const validateEmail = (v) => {
@@ -22,8 +28,43 @@ export default function ForgotPassword() {
     return re.test(v) ? null : 'Email inválido';
   };
 
+  const extractServerMessage = (err) => {
+    // Robust extraction: acepta string, {detail}, {error}, {field: [..]} y objetos mezclados
+    try {
+      if (!err) return null;
+      if (typeof err === 'string') return err;
+
+      const resp = err?.response;
+      if (resp?.data) {
+        const data = resp.data;
+        if (typeof data === 'string') return data;
+        if (data.detail) return data.detail;
+        if (data.error) return data.error;
+        // data puede ser { email: ["..."] } o { non_field_errors: ["..."] }
+        if (typeof data === 'object') {
+          const values = Object.values(data)
+            .flat()
+            .map((vv) => (typeof vv === 'string' ? vv : (Array.isArray(vv) ? vv.join(' ') : JSON.stringify(vv))));
+          return values.join(' ').trim() || null;
+        }
+      }
+
+      if (err?.request) {
+        // No response (network)
+        return 'No se recibió respuesta del servidor. Revisa tu conexión o intenta más tarde.';
+      }
+
+      return err?.message ?? 'Ocurrió un error inesperado.';
+    } catch (e) {
+      return 'Error procesando la respuesta del servidor.';
+    }
+  };
+
   const submit = async (e) => {
     e.preventDefault();
+    if (loading) return; // evitar envíos dobles
+
+    // limpiar mensajes previos
     setMsg(null);
     setError(null);
 
@@ -36,48 +77,28 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      // endpoint ajustado al backend actual: auth/password-reset-request/
-      // backend intentionally returns 200 even if email doesn't exist (security)
+      // Nota: tu backend puede exponer este endpoint como:
+      // - 'auth/password-reset-request/' (si así lo tienes ahora)
+      // - o 'auth/password-reset/' (si adoptas la implementación sugerida)
+      // Mantengo el endpoint que tenías para no romper otros archivos.
       await api.post('auth/password-reset-request/', { email: raw });
-      setMsg('Si existe una cuenta con ese email, recibirás instrucciones por correo.');
-      setError(null);
+
+      // Solo actualizar estado si el componente sigue montado
+      if (isMountedRef.current) {
+        setMsg('Si existe una cuenta con ese email, recibirás instrucciones por correo.');
+        setError(null);
+      }
     } catch (err) {
       console.error('ForgotPassword error:', err);
 
-      // Mejor extracción del mensaje del backend
-      let serverMsg = null;
+      const serverMsg = extractServerMessage(err);
 
-      // Caso: respuesta con body (err.response.data)
-      if (err?.response?.data) {
-        const data = err.response.data;
-        if (typeof data === 'string') {
-          serverMsg = data;
-        } else if (data.detail) {
-          serverMsg = data.detail;
-        } else if (data.error) {
-          serverMsg = data.error;
-        } else if (typeof data === 'object') {
-          // data puede ser { email: ["..."] } o { non_field_errors: ["..."] }
-          try {
-            const values = Object.values(data)
-              .flat()
-              .map(vv => (typeof vv === 'string' ? vv : JSON.stringify(vv)));
-            serverMsg = values.join(' ');
-          } catch (e) {
-            serverMsg = JSON.stringify(data);
-          }
-        }
-      } else if (err?.request) {
-        // No response received (network)
-        serverMsg = 'No se recibió respuesta del servidor. Revisa tu conexión o intenta más tarde.';
-      } else {
-        serverMsg = err.message || 'Ocurrió un error inesperado.';
+      if (isMountedRef.current) {
+        setError(serverMsg || 'No se pudo enviar la solicitud. Intenta nuevamente más tarde.');
+        setMsg(null);
       }
-
-      setError(serverMsg || 'No se pudo enviar la solicitud. Intenta nuevamente más tarde.');
-      setMsg(null);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) setLoading(false);
     }
   };
 

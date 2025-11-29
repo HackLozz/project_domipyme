@@ -1,14 +1,16 @@
 # backend/apps/accounts/urls.py
-from django.urls import path
-from .views import (
-    RegisterView, ObtainTokenPairView, MeView,
-    PasswordResetRequestView, PasswordResetConfirmView,
-)
-from rest_framework_simplejwt.views import TokenRefreshView
-from rest_framework import routers
 from django.urls import path, include
-from .views import RegisterView, ObtainTokenPairView, MeView, PasswordResetRequestView, PasswordResetConfirmView, AdminUserViewSet
+from rest_framework import routers
 from rest_framework_simplejwt.views import TokenRefreshView
+
+from .views import (
+    RegisterView,
+    ObtainTokenPairView,
+    MeView,
+    PasswordResetRequestView,
+    PasswordResetConfirmView,
+    AdminUserViewSet,
+)
 
 app_name = "accounts"
 
@@ -21,6 +23,6 @@ urlpatterns = [
     path('token/', ObtainTokenPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('me/', MeView.as_view(), name='me'),
-    path('password-reset-request/', PasswordResetRequestView.as_view(), name='password-reset-request'),
-    path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password-reset-confirm'),
+    path('password-reset-request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
+    path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 ]
