@@ -15,9 +15,13 @@ import ShopCreate from './pages/ShopCreate';
 import ShopPage from './pages/ShopPage';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import OrderSuccess from './pages/OrderSuccess';
+import ProductDetail from './pages/ProductDetail';
 import AdminPanel from './pages/AdminPanel';
 import MerchantPanel from './pages/MerchantPanel';
 import CustomerDashboard from './pages/CustomerDashboard';
+import NotFound from './pages/NotFound';
+import MyOrders from './pages/MyOrders';
 
 // Merchant subpages
 import MerchantCreateShop from './pages/merchant/CreateShop';
@@ -66,10 +70,12 @@ export default function App() {
         <Route path="/catalog" element={<Catalog />} />
         <Route path="/shop/create" element={<RequireAuth><ShopCreate /></RequireAuth>} />
         <Route path="/shop/:slug" element={<ShopPage />} />
+        <Route path="/product/:id" element={<ProductDetail />} />
 
         {/* Cart & checkout */}
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<RequireAuth><Checkout /></RequireAuth>} />
+        <Route path="/order/success" element={<OrderSuccess />} />
 
         {/* Dashboards & panels */}
         <Route
@@ -77,6 +83,16 @@ export default function App() {
           element={
             <PrivateRoute role="customer">
               <CustomerDashboard />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Customer orders */}
+        <Route
+          path="/orders"
+          element={
+            <PrivateRoute role="customer">
+              <MyOrders />
             </PrivateRoute>
           }
         />
@@ -154,7 +170,7 @@ export default function App() {
         />
 
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );

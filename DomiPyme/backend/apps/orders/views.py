@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
-from .serializers import CheckoutSerializer
+from .serializers import CheckoutSerializer, OrderSerializer
 from .models import Order, OrderItem
 from apps.shops.models import Product, Shop
 from decimal import Decimal
@@ -93,3 +93,12 @@ class CheckoutView(APIView):
         if len(created_orders) == 1:
             return Response(created_orders[0], status=status.HTTP_201_CREATED)
         return Response({"orders": created_orders}, status=status.HTTP_201_CREATED)
+
+
+class MyOrdersView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        orders = Order.objects.filter(customer=request.user).order_by('-created_at')
+        serializer = OrderSerializer(orders, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

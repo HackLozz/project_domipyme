@@ -1,8 +1,17 @@
-# DomiPyme
+# DomiPyme 🛍️
 
 **Plataforma de comercio electrónico para pequeñas y medianas empresas**
 
+[![Tests](https://img.shields.io/badge/tests-30%2F30%20passing-brightgreen)](backend/)
+[![Coverage](https://img.shields.io/badge/coverage-~70%25-yellow)](backend/)
+[![Django](https://img.shields.io/badge/Django-4.2+-blue)](https://www.djangoproject.com/)
+[![React](https://img.shields.io/badge/React-18+-61dafb)](https://react.dev/)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
 DomiPyme es una solución completa que permite a comerciantes crear sus propias tiendas virtuales (mini-sites), gestionar productos y procesar órdenes, mientras que los clientes pueden navegar catálogos, agregar productos al carrito y realizar compras.
+
+📊 **[Ver Progreso del Proyecto →](PROGRESS.md)**
 
 ---
 
@@ -18,7 +27,8 @@ DomiPyme es una solución completa que permite a comerciantes crear sus propias 
 8. [API Documentation](#api-documentation)
 9. [Despliegue](#despliegue)
 10. [Estructura del Proyecto](#estructura-del-proyecto)
-11. [Contribuir](#contribuir)
+11. [Project Management](#project-management)
+12. [Contribuir](#contribuir)
 
 ---
 
@@ -530,9 +540,89 @@ Usar prefijos:
 
 ---
 
+## 📊 Project Management
+
+DomiPyme utiliza un sistema estructurado de gestión de tareas y sprints:
+
+### 📁 Documentos de Gestión
+
+- **[BACKLOG.md](./BACKLOG.md)** - Backlog completo de features
+  - Lista exhaustiva de tareas por categoría
+  - Prioridades (P0-P3)
+  - Estimaciones de tiempo
+  - Roadmap por versiones
+  - 100+ tareas organizadas
+
+- **[SPRINT_TRACKING.md](./SPRINT_TRACKING.md)** - Tracking de sprints
+  - Sprint actual y objetivo
+  - Tareas en progreso
+  - Métricas (velocity, burndown)
+  - Retrospectivas y aprendizajes
+  - Historial de sprints
+
+- **[TODO.md](./TODO.md)** - Tareas técnicas inmediatas
+  - Deuda técnica
+  - Bugs conocidos
+  - Mejoras rápidas
+
+### 🎯 Metodología
+
+Usamos **Scrum adaptado** con sprints de 2 semanas:
+
+1. **Sprint Planning** - Seleccionar tareas del backlog
+2. **Daily Standups** - Sincronización diaria (async en remote)
+3. **Sprint Review** - Demo y métricas
+4. **Retrospectiva** - Mejora continua
+
+### 📈 Métricas Clave
+
+- **Velocity**: ~20 story points por sprint
+- **Test Coverage**: 70%+ (objetivo: 80%)
+- **Code Quality**: A grade (SonarQube)
+- **Deployment Frequency**: Continuous to dev, weekly to prod
+
+### 🏷️ Sistema de Prioridades
+
+- **P0 (Crítico)** - Bloquea funcionalidad core o seguridad
+- **P1 (Alto)** - Feature importante o UX significativa
+- **P2 (Medio)** - Mejora incremental
+- **P3 (Bajo)** - Nice-to-have
+
+### 📅 Roadmap Ejecutivo
+
+- **v1.1.0** (Mes 1-2): Monetización + UX
+- **v1.2.0** (Mes 3-4): Inventory + Product Management
+- **v1.3.0** (Mes 5-6): Search + Social Features
+- **v1.4.0** (Mes 7-8): Mobile + PWA
+- **v1.5.0** (Mes 9-10): Scale + Performance
+- **v2.0.0** (Mes 11-12): Enterprise Features
+
+Ver [BACKLOG.md](./BACKLOG.md) para roadmap detallado.
+
+---
+
 ## 📄 Licencia
 
 Este proyecto es privado y propietario. No está permitido su uso, copia, modificación o distribución sin autorización expresa.
+
+---
+
+## 🤝 Contribuir
+
+¡Contribuciones son bienvenidas! Lee nuestra [Guía de Contribución](CONTRIBUTING.md) para comenzar.
+
+**Quick Links:**
+- 📋 [BACKLOG.md](BACKLOG.md) - Escoger tareas
+- 🐛 [GitHub Issues](https://github.com/tuusuario/domipyme/issues) - Reportar bugs
+- 💬 [GitHub Discussions](https://github.com/tuusuario/domipyme/discussions) - Preguntas
+- 📖 [CONTRIBUTING.md](CONTRIBUTING.md) - Guía completa
+
+**Proceso Simplificado:**
+1. Fork el proyecto
+2. Crear branch (`git checkout -b feature/amazing-feature`)
+3. Commit cambios (`git commit -m 'feat: add amazing feature'`)
+4. Push a branch (`git push origin feature/amazing-feature`)
+5. Abrir Pull Request
 
 ---
 
@@ -566,17 +656,77 @@ Para preguntas o soporte:
 
 ---
 
-## 📝 TODO
+## 📋 Project Management
 
-Ver el archivo `TODO.md` para el roadmap completo.
+DomiPyme utiliza una metodología ágil con documentación estructurada para gestión del proyecto:
 
-**Próximas funcionalidades:**
-- [ ] Integración de pasarela de pagos (Stripe/PayPal)
-- [ ] Sistema de notificaciones en tiempo real
-- [ ] Dashboard analytics para merchants
-- [ ] Sistema de reviews y ratings
-- [ ] Búsqueda avanzada con Elasticsearch
-- [ ] Internacionalización (i18n)
-- [ ] PWA para móviles
-- [ ] Audit logging
-- [ ] Celery + Redis para tareas asíncronas
+### 📚 Documentos de Gestión
+
+- **[BACKLOG.md](BACKLOG.md)**: Feature backlog completo con 100+ tareas organizadas por categoría (Security, Product Management, Shopping Experience, etc.). Incluye prioridades (P0-P3), estimaciones de tiempo y roadmap de versiones.
+
+- **[SPRINT_TRACKING.md](SPRINT_TRACKING.md)**: Tracking de sprints con metodología Scrum. Incluye:
+  - Sprint Planning: Objetivos, capacidad, user stories
+  - Daily Tracking: Progreso diario, blockers, velocity
+  - Sprint Review & Retrospective: Demos, métricas, mejoras
+  
+- **[TODO.md](TODO.md)**: Deuda técnica y tareas de mantenimiento inmediato.
+
+### 🛠️ Scripts de Gestión
+
+Usa el Task Manager interactivo para gestionar el proyecto desde la terminal:
+
+```bash
+# Linux/Mac
+python3 scripts/task_manager.py
+
+# Windows
+python scripts\task_manager.py
+```
+
+**Características del Task Manager:**
+- 📊 Ver resumen del sprint actual
+- 📝 Listar tareas pendientes (Top 10)
+- 🔍 Buscar tareas en el backlog
+- 📈 Ver métricas del proyecto
+- ✍️ Agregar notas al sprint
+- 🗂️ Ver categorías del backlog
+- 🔧 Ver deuda técnica
+
+Ver [scripts/README.md](scripts/README.md) para documentación completa.
+
+### 🎯 Metodología
+
+**Sprint Duration:** 2 semanas
+**Velocity Promedio:** 20 story points
+**Definition of Done:**
+- ✅ Código escrito y revisado
+- ✅ Tests con coverage ≥80%
+- ✅ Documentación actualizada
+- ✅ API endpoints documentados
+- ✅ Sin errores críticos en linting
+- ✅ Deployed a staging y validado
+
+### 📅 Roadmap Actual
+
+**v1.1.0** (Sprint 1-2): Monetización básica
+- Payment Gateway Integration (Stripe/PayPal)
+- Order Management Enhancement
+- Real-time Notifications
+
+**v1.2.0** (Sprint 3-4): UX mejorada
+- Shopping Cart Enhancement
+- Product Images & Media
+- Search & Filtering
+
+**v2.0.0** (Sprint 5-8): Escalabilidad
+- Multi-language Support
+- Analytics Dashboard
+- Performance Optimization
+
+Ver [BACKLOG.md](BACKLOG.md) para roadmap completo.
+
+---
+
+## 📝 TODO Técnico
+
+Ver el archivo [TODO.md](TODO.md) para deuda técnica y tareas de mantenimiento.

@@ -55,7 +55,7 @@ class TestShopListCreate:
     def test_list_shops_anonymous(self):
         """Anonymous users pueden ver shops públicas."""
         client = APIClient()
-        url = reverse('shops:shop-list')
+        url = reverse('shop-list')
         response = client.get(url)
         
         assert response.status_code == 200
@@ -66,7 +66,7 @@ class TestShopListCreate:
         client = APIClient()
         client.force_authenticate(user=merchant_user)
         
-        url = reverse('shops:shop-list')
+        url = reverse('shop-list')
         data = {
             'name': 'New Shop',
             'slug': 'new-shop',
@@ -84,7 +84,7 @@ class TestShopListCreate:
         client = APIClient()
         client.force_authenticate(user=regular_user)
         
-        url = reverse('shops:shop-list')
+        url = reverse('shop-list')
         data = {
             'name': 'New Shop',
             'slug': 'new-shop',
@@ -98,7 +98,7 @@ class TestShopListCreate:
         """Anonymous user no puede crear shop."""
         client = APIClient()
         
-        url = reverse('shops:shop-list')
+        url = reverse('shop-list')
         data = {
             'name': 'New Shop',
             'slug': 'new-shop',
@@ -116,7 +116,7 @@ class TestShopDetail:
     def test_retrieve_shop(self, shop):
         """Cualquiera puede ver detalle de shop."""
         client = APIClient()
-        url = reverse('shops:shop-detail', args=[shop.pk])
+        url = reverse('shop-detail', args=[shop.pk])
         response = client.get(url)
         
         assert response.status_code == 200
@@ -128,7 +128,7 @@ class TestShopDetail:
         client = APIClient()
         client.force_authenticate(user=merchant_user)
         
-        url = reverse('shops:shop-detail', args=[shop.pk])
+        url = reverse('shop-detail', args=[shop.pk])
         data = {'name': 'Updated Shop Name'}
         response = client.patch(url, data, format='json')
         
@@ -142,7 +142,7 @@ class TestShopDetail:
         client = APIClient()
         client.force_authenticate(user=other_merchant)
         
-        url = reverse('shops:shop-detail', args=[shop.pk])
+        url = reverse('shop-detail', args=[shop.pk])
         data = {'name': 'Hacked Name'}
         response = client.patch(url, data, format='json')
         
@@ -153,7 +153,7 @@ class TestShopDetail:
         client = APIClient()
         client.force_authenticate(user=merchant_user)
         
-        url = reverse('shops:shop-detail', args=[shop.pk])
+        url = reverse('shop-detail', args=[shop.pk])
         response = client.delete(url)
         
         assert response.status_code == 204
@@ -164,7 +164,7 @@ class TestShopDetail:
         client = APIClient()
         client.force_authenticate(user=other_merchant)
         
-        url = reverse('shops:shop-detail', args=[shop.pk])
+        url = reverse('shop-detail', args=[shop.pk])
         response = client.delete(url)
         
         assert response.status_code == 403
@@ -180,7 +180,7 @@ class TestShopSlugUniqueness:
         client = APIClient()
         client.force_authenticate(user=merchant_user)
         
-        url = reverse('shops:shop-list')
+        url = reverse('shop-list')
         data = {
             'name': 'Another Shop',
             'slug': shop.slug,  # mismo slug que shop existente

@@ -26,6 +26,8 @@ def test_merchant_can_create_shop():
     data = {'name': 'Mi Tienda', 'description': 'Desc'}
     resp = client.post(url, data, format='json')
     
+    if resp.status_code not in (200, 201):
+        print(f"Error response: {resp.data}")
     assert resp.status_code in (200, 201)
     assert Shop.objects.filter(owner=merchant).exists()
 

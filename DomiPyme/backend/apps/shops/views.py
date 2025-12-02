@@ -1,4 +1,4 @@
-from rest_framework import viewsets, generics, permissions, status
+from rest_framework import viewsets, generics, permissions, status, exceptions
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, AllowAny
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -10,6 +10,7 @@ from django.utils.text import slugify
 from .models import Shop, Product as ShopProduct
 from .serializers import ShopSerializer, ProductSerializer
 from apps.products.permissions import IsMerchantOrAdmin
+from .permissions import IsShopOwnerOrReadOnly, IsProductShopOwnerOrReadOnly
 
 # ----- Resolver modelo Product de forma robusta -----
 try:
@@ -83,12 +84,7 @@ class ShopDetailView(generics.RetrieveAPIView):
 class ShopViewSet(viewsets.ModelViewSet):
     queryset = Shop.objects.all().order_by('-created_at')
     serializer_class = ShopSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAuthenticated()]
-        return super().get_permissions()
+    permission_classes = [IsAuthenticatedOrReadOnly, IsMerchantOrAdmin, IsShopOwnerOrReadOnly]
 
     def get_queryset(self):
         """
@@ -130,6 +126,34 @@ class ShopViewSet(viewsets.ModelViewSet):
 
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+    @action(detail=False, methods=['get', 'put'], url_path='my', permission_classes=[IsAuthenticated])
+    def my_shop(self, request):
+        """
+        GET /api/shops/my/ -> retorna la primera tienda del owner autenticado (uso actual del frontend)
+        PUT /api/shops/my/ -> actualiza esa tienda con los datos enviados
+        Nota: si el usuario tiene múltiples tiendas, se toma la más reciente por created_at.
+        """
+        user = request.user
+        qs = Shop.objects.filter(owner=user).order_by('-created_at')
+        instance = qs.first()
+
+        if request.method.lower() == 'get':
+            if not instance:
+                return Response({"detail": "No tienes tiendas creadas."}, status=status.HTTP_404_NOT_FOUND)
+            data = ShopSerializer(instance, context={'request': request}).data
+            return Response(data, status=status.HTTP_200_OK)
+
+        # PUT
+        if not instance:
+            return Response({"detail": "No tienes tiendas para actualizar."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = ShopSerializer(instance, data=request.data, partial=False, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        # Validar ownership explícitamente
+        if instance.owner_id != user.id and not user.is_staff:
+            raise exceptions.PermissionDenied("No tienes permisos para actualizar esta tienda.")
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=['get'], url_path='slug/(?P<slug>[-a-zA-Z0-9_]+)')
     def retrieve_by_slug(self, request, slug=None):
@@ -190,7 +214,7 @@ class ProductViewSet(viewsets.ModelViewSet):
             return
 
         if getattr(shop, 'owner', None) != user:
-            raise permissions.PermissionDenied(
+            raise exceptions.PermissionDenied(
                 "No tienes permisos para administrar productos en esta tienda."
             )
 
@@ -202,7 +226,7 @@ class ProductViewSet(viewsets.ModelViewSet):
         if not serializer.validated_data.get('shop'):
             instance_shop = getattr(getattr(serializer, 'instance', None), 'shop', None)
             if instance_shop and not self.request.user.is_staff and instance_shop.owner != self.request.user:
-                raise permissions.PermissionDenied("No tienes permisos para editar este producto.")
+                raise exceptions.PermissionDenied("No tienes permisos para editar este producto.")
         else:
             self.validate_shop_ownership(serializer)
 
@@ -224,5 +248,19 @@ class ProductViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
 
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='my', permission_classes=[IsAuthenticated])
+    def my_products(self, request):
+        """
+        GET /api/products/my/ -> lista productos cuyos shops pertenecen al usuario autenticado.
+        """
+        user = request.user
+        qs = self.get_queryset().filter(shop__owner=user)
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

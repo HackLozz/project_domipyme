@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../components/Api";
+import '../components/ui/Design.css';
 
 export default function Home() {
   const [shops, setShops] = useState([]);
@@ -54,9 +55,9 @@ export default function Home() {
         ]);
 
         if (!mounted) return;
-
-        const shopsData = normalizeSettled(sSettled);
-        const productsData = normalizeSettled(pSettled);
+        <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
+          <Link to="/catalog" className="btn btn-primary">Explorar Catálogo</Link>
+          <Link to="/shop/create" className="btn">Crear tu tienda</Link>
 
         setShops(shopsData);
         setProducts(productsData);

@@ -33,6 +33,9 @@ class ShopSerializer(serializers.ModelSerializer):
             'active', 'created_at', 'owner', 'owner_email', 'products_count'
         )
         read_only_fields = ('id', 'created_at', 'owner', 'owner_email', 'products_count')
+        extra_kwargs = {
+            'slug': {'required': False, 'allow_blank': True}
+        }
 
     def get_products_count(self, obj):
         try:

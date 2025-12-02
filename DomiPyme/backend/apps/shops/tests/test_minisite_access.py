@@ -5,8 +5,7 @@ import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
-from apps.shops.models import Shop
-from apps.products.models import Product
+from apps.shops.models import Shop, Product
 
 User = get_user_model()
 
@@ -51,7 +50,7 @@ class TestShopBySlug:
         client = APIClient()
         
         # Buscar por filtro de slug
-        url = reverse('shops:shop-list')
+        url = reverse('shop-list')
         response = client.get(url, {'slug': shop.slug})
         
         assert response.status_code == 200
@@ -64,7 +63,7 @@ class TestShopBySlug:
     def test_active_shops_only_in_public_list(self, shop, inactive_shop):
         """Solo shops activas aparecen en lista pública."""
         client = APIClient()
-        url = reverse('shops:shop-list')
+        url = reverse('shop-list')
         response = client.get(url)
         
         assert response.status_code == 200
@@ -111,7 +110,7 @@ class TestPublicShopRoutes:
     def test_public_shop_detail(self, shop):
         """Detalle de shop activa es accesible públicamente."""
         client = APIClient()
-        url = reverse('shops:shop-detail', args=[shop.pk])
+        url = reverse('shop-detail', args=[shop.pk])
         response = client.get(url)
         
         assert response.status_code == 200
@@ -127,7 +126,7 @@ class TestPublicShopRoutes:
         )
         
         client = APIClient()
-        url = reverse('products:product-list')
+        url = reverse('product-list')
         response = client.get(url, {'shop': shop.id})
         
         assert response.status_code == 200
@@ -142,7 +141,7 @@ class TestPublicShopRoutes:
         Product.objects.create(name='Product B', shop=shop, price=20, stock=20)
         
         client = APIClient()
-        url = reverse('shops:shop-detail', args=[shop.pk])
+        url = reverse('shop-detail', args=[shop.pk])
         response = client.get(url)
         
         assert response.status_code == 200

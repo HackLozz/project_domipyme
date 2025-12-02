@@ -101,8 +101,18 @@ export default function Checkout() {
     setLoading(true);
 
     try {
+      // Mapear al contrato del backend: { items: [{ product, qty }] }
+      const items = cart.map((c) => {
+        const raw = c.raw || {};
+        const productId = String(
+          raw.product_id ?? raw.product ?? raw.id ?? raw.pk ?? c.product_id ?? c.id ?? ''
+        ).trim();
+        if (!productId) throw new Error('Falta el identificador del producto en el carrito.');
+        return { product: Number(productId), qty: Number(c.quantity || 1) };
+      });
+
       const payload = {
-        items: cart.map((c) => ({ title: c.title, price: c.price, quantity: c.quantity })),
+        items,
         shipping_address: address,
         shipping_method: shippingMethod,
         payment_method: paymentMethod,
@@ -134,7 +144,7 @@ export default function Checkout() {
       console.error('Checkout unexpected response:', res.data);
     } catch (err) {
       console.error('Checkout error:', err);
-      const message = err?.response?.data?.detail || 'Error procesando el pago. Intenta nuevamente.';
+      const message = err?.response?.data?.detail || err?.message || 'Error procesando el pago. Intenta nuevamente.';
       alert(message);
     } finally {
       setLoading(false);

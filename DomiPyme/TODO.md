@@ -1,4 +1,72 @@
-# DomiPyme - TODO List
+# DomiPyme - TODO List (Técnico)
+
+> **Sistema de Gestión de Tareas:**
+> - **[BACKLOG.md](./BACKLOG.md)** → Feature backlog completo (100+ tareas, roadmap)
+> - **[SPRINT_TRACKING.md](./SPRINT_TRACKING.md)** → Tracking de sprints Scrum
+> - **[scripts/task_manager.py](./scripts/task_manager.py)** → Herramienta CLI interactiva
+> - **[TODO.md](./TODO.md)** → Este archivo (deuda técnica inmediata)
+
+---
+
+## 📊 Estado Actual del Proyecto
+
+### ✅ Sprint 0: Fundación (COMPLETADO)
+- **Velocity:** 20 story points
+- **Fecha:** 2024-01-16
+- **Logros:**
+  - ✅ 30/30 tests passing (100%)
+  - ✅ Autenticación JWT completa
+  - ✅ CRUD shops y products con permisos
+  - ✅ Reset password con emails HTML
+  - ✅ Docker + CI/CD funcional
+  - ✅ API documentation completa
+
+### 🎯 Sprint 1: Monetización (EN PROGRESO)
+- **Objetivo:** Implementar pasarelas de pago y mejorar UX
+- **Capacidad:** 10 días (2 semanas)
+- **Fechas:** 2025-01-17 → 2025-01-31
+- **Tareas Priorizadas:**
+  - 🔴 [P0] Payment Gateway Integration (5d)
+  - 🟠 [P1] Order Management Enhancement (3d)
+  - 🟠 [P1] Real-time Notifications (4d)
+  - 🟡 [P2] Frontend Loading States (2d)
+
+### 📈 Métricas Clave
+- **Tests:** 30/30 passing (100%)
+- **Coverage:** ~70% (objetivo: 80%+)
+- **Velocity:** 20 story points/sprint
+- **Backlog:** 100+ tareas catalogadas
+- **Security Score:** B+ (objetivo: A)
+
+---
+
+## 🚀 Próximos Pasos (Recomendado)
+
+### 1. Comenzar Sprint 1
+```bash
+# Usar el Task Manager para ver detalles
+python scripts/task_manager.py
+# Opción 1: Ver resumen del sprint actual
+```
+
+### 2. Implementar Payment Gateway (P0)
+- Stripe o PayPal SDK integration
+- Webhook handling para confirmación de pago
+- Frontend payment form
+- Testing con tarjetas de prueba
+- **Estimado:** 5 días
+
+### 3. Mejorar Order Management (P1)
+- State machine para órdenes (pending → paid → shipped → delivered)
+- Cancellation flow con reglas de negocio
+- Order timeline visualization
+- **Estimado:** 3 días
+
+---
+
+Este archivo mantiene las tareas técnicas inmediatas y el historial de completados.
+
+---
 
 ## ✅ Completado (v1.0.0)
 

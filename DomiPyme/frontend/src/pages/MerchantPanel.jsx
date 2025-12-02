@@ -37,7 +37,7 @@ export default function MerchantPanel() {
           <h2>{shop.name}</h2>
           <p>{shop.description}</p>
 
-          <Link to={`/shops/${shop.slug}`}>Ver tienda pública</Link>
+          <Link to={`/shop/${shop.slug}`}>Ver tienda pública</Link>
           <br />
           <Link to="/merchant/shop/edit">Editar tienda</Link>
 
