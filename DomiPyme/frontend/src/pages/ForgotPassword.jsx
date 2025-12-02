@@ -10,6 +10,7 @@ export default function ForgotPassword() {
   const [msg, setMsg] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [debugLink, setDebugLink] = useState(null);
 
   useEffect(() => {
     // micro-delay solo para animación; conserva tu UX
@@ -81,12 +82,19 @@ export default function ForgotPassword() {
       // - 'auth/password-reset-request/' (si así lo tienes ahora)
       // - o 'auth/password-reset/' (si adoptas la implementación sugerida)
       // Mantengo el endpoint que tenías para no romper otros archivos.
-      await api.post('auth/password-reset-request/', { email: raw });
+      const { data } = await api.post('auth/password-reset-request/', { email: raw });
 
       // Solo actualizar estado si el componente sigue montado
       if (isMountedRef.current) {
-        setMsg('Si existe una cuenta con ese email, recibirás instrucciones por correo.');
+        const maybeLink = data?.debug_reset_url;
+        setMsg(
+          maybeLink
+            ? 'Enlace de prueba generado abajo (solo dev). También se intentó enviar el correo.'
+            : 'Si existe una cuenta con ese email, recibirás instrucciones por correo.'
+        );
         setError(null);
+        // Guardar el enlace de depuración en estado para mostrarlo
+        setDebugLink(maybeLink || null);
       }
     } catch (err) {
       console.error('ForgotPassword error:', err);
@@ -143,6 +151,13 @@ export default function ForgotPassword() {
             {error && <div role="alert" style={styles.error}>{error}</div>}
             {msg && <div role="status" style={styles.success}>{msg}</div>}
 
+            {debugLink && (
+              <div style={styles.debugBox}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>Enlace de depuración (dev):</div>
+                <a href={debugLink} target="_blank" rel="noopener noreferrer" style={styles.debugLink}>{debugLink}</a>
+              </div>
+            )}
+
             <button
               type="submit"
               className="btn-primary"
@@ -178,5 +193,7 @@ const styles = {
   error: { marginTop: 8, color: '#b91c1c', background: '#fff1f2', padding: 10, borderRadius: 8 },
   success: { marginTop: 8, color: '#065f46', background: '#ecfdf5', padding: 10, borderRadius: 8 },
   links: { marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'center' },
-  link: { color: '#111827', textDecoration: 'none', fontWeight: 700 }
+  link: { color: '#111827', textDecoration: 'none', fontWeight: 700 },
+  debugBox: { marginTop: 10, padding: 10, borderRadius: 8, background: '#f3f4f6', border: '1px dashed #d1d5db', wordBreak: 'break-all' },
+  debugLink: { color: '#111827', fontWeight: 700, textDecoration: 'underline' }
 };

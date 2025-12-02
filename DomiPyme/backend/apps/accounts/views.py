@@ -115,23 +115,31 @@ class PasswordResetRequestView(APIView):
         token = token_generator.make_token(user)
 
         # Build frontend reset URL (frontend should handle route)
-        frontend_base = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+        frontend_base = getattr(settings, "FRONTEND_BASE_URL", "http://localhost:5173")
         reset_url = f"{frontend_base}/reset-password/?uid={uid}&token={token}"
 
-        # Render email (use template if exists)
+        # Render email HTML and prepare plain text fallback
+        html_message = None
+        plain_message = (
+            f"Hola,\n\nPara restablecer tu contraseña, ingresa al siguiente enlace:\n\n{reset_url}\n\n"
+            "Si no solicitaste esto, ignora este correo."
+        )
         try:
             context = {"user": user, "reset_url": reset_url}
-            # if you have an HTML template, use render_to_string; otherwise plain text
-            message = render_to_string("accounts/password_reset_email.html", context)
-        except Exception:
-            message = (
-                f"Hola,\n\nPara restablecer tu contraseña, ingresa al siguiente enlace:\n\n{reset_url}\n\n"
-                "Si no solicitaste esto, ignora este correo."
-            )
+            html_message = render_to_string("accounts/password_reset_email.html", context)
+        except Exception as e:
+            logger.warning("Failed to render HTML email template: %s. Using plain text.", str(e))
 
         subject = "Restablecer contraseña - DomiPyme"
         try:
-            send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=False)
+            send_mail(
+                subject,
+                plain_message,
+                settings.DEFAULT_FROM_EMAIL,
+                [user.email],
+                fail_silently=False,
+                html_message=html_message
+            )
             logger.info("Password reset email sent to %s (uid=%s)", user.email, uid)
         except Exception as exc:
             # Log full exception; respond 200 to caller but record failure internally

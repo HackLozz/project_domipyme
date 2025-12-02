@@ -26,8 +26,9 @@ class ShopListCreateView(generics.ListCreateAPIView):
         """
         Por defecto listamos sólo shops activas.
         Los staff pueden ver todas si lo desean.
+        Optimización: select_related('owner') para evitar N+1.
         """
-        qs = Shop.objects.all().order_by('-created_at')
+        qs = Shop.objects.select_related('owner').order_by('-created_at')
         user = self.request.user
         if not (user and user.is_authenticated and user.is_staff):
             qs = qs.filter(active=True)
@@ -93,9 +94,10 @@ class ShopViewSet(viewsets.ModelViewSet):
         """
         Por defecto devolvemos sólo shops activas para consumidores.
         Staff ve todo.
+        Optimización: select_related('owner') y prefetch_related('products') para evitar N+1.
         """
         user = self.request.user
-        qs = Shop.objects.all().order_by('-created_at')
+        qs = Shop.objects.select_related('owner').prefetch_related('products').order_by('-created_at')
         if not (user and user.is_authenticated and user.is_staff):
             qs = qs.filter(active=True)
         q = self.request.query_params.get('search')

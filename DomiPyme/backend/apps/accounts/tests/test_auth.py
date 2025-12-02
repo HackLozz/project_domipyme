@@ -10,7 +10,7 @@ User = get_user_model()
 @pytest.mark.django_db
 def test_register_and_login():
     client = APIClient()
-    url = reverse('register')
+    url = reverse('accounts:register')
     data = {
         'email':'testuser@example.com',
         'full_name':'Test User',
@@ -20,7 +20,7 @@ def test_register_and_login():
     resp = client.post(url, data, format='json')
     assert resp.status_code == 201
     # Login
-    login_url = reverse('token_obtain_pair')
+    login_url = reverse('accounts:token_obtain_pair')
     resp2 = client.post(login_url, {'email':'testuser@example.com','password':'StrongPass123!'}, format='json')
     assert resp2.status_code == 200
     assert 'access' in resp2.data
@@ -32,7 +32,7 @@ def test_password_reset_flow(monkeypatch):
     client = APIClient()
     user = User.objects.create_user(email='resetme@example.com', password='OldPass123!')
     # Request reset
-    url = reverse('password_reset')
+    url = reverse('accounts:password_reset_request')
     resp = client.post(url, {'email':'resetme@example.com'}, format='json')
     assert resp.status_code == 200
     # check that an email was sent

@@ -5,7 +5,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
-  const uid = searchParams.get('uid');    // uid codificado en base64 (uidb64)
+  const uidb64 = searchParams.get('uid');    // uid codificado en base64 (uidb64)
   const token = searchParams.get('token');
   const [password, setPassword] = useState('');
   const [msg, setMsg] = useState(null);
@@ -31,12 +31,11 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      // IMPORTANTE: enviamos 'uid' y 're_new_password' para coincidir con el backend
+      // Enviamos 'uidb64', 'token' y 'new_password' como espera el backend
       const resp = await api.post('auth/password-reset-confirm/', {
-        uid,
+        uidb64,
         token,
         new_password: password,
-        re_new_password: password,
       });
 
       // Mostrar mensaje y redirigir (replace evita volver con back)
@@ -61,7 +60,7 @@ export default function ResetPassword() {
     }
   };
 
-  if (!uid || !token) {
+  if (!uidb64 || !token) {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
