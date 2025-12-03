@@ -150,12 +150,18 @@ class MerchantOrdersStatsView(APIView):
         delivered = qs.filter(status='delivered').count()
         last_order_date = qs.first().created_at.isoformat() if qs.exists() else None
 
+        from django.db.models import Sum
+        revenue_total = qs.aggregate(s=Sum('total')).get('s') or 0
+        revenue_approved = qs.filter(payment_confirmed=True).aggregate(s=Sum('total')).get('s') or 0
+
         return Response({
             'total': total,
             'pending': pending,
             'approved': approved,
             'delivered': delivered,
             'last_order_date': last_order_date,
+            'revenue_total': str(revenue_total),
+            'revenue_approved': str(revenue_approved),
         }, status=status.HTTP_200_OK)
 
 

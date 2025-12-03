@@ -10,6 +10,12 @@ export default function ShopDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const mountedRef = useRef(true);
+  
+  // Filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [priceMin, setPriceMin] = useState('');
+  const [priceMax, setPriceMax] = useState('');
+  const [inStockOnly, setInStockOnly] = useState(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -29,9 +35,18 @@ export default function ShopDetail() {
 
         // 2) intentar cargar productos por shop slug (action list_by_shop)
         try {
-          const pResp = await api.get(`products/by-shop/${encodeURIComponent(slug)}/`, { signal: controller.signal });
+          const params = new URLSearchParams();
+          if (searchTerm) params.append('search', searchTerm);
+          if (priceMin) params.append('price_min', priceMin);
+          if (priceMax) params.append('price_max', priceMax);
+          if (inStockOnly) params.append('in_stock', 'true');
+          const queryString = params.toString();
+          const url = `products/by-shop/${encodeURIComponent(slug)}/${queryString ? '?' + queryString : ''}`;
+          const pResp = await api.get(url, { signal: controller.signal });
           if (!mountedRef.current) return;
-          setProducts(pResp.data || []);
+          const data = pResp.data;
+          const list = Array.isArray(data) ? data : (data.results || []);
+          setProducts(list);
         } catch (e) {
           // fallback: si el endpoint anterior falla, intentar por shop id
           try {
@@ -91,7 +106,7 @@ export default function ShopDetail() {
       mountedRef.current = false;
       controller.abort();
     };
-  }, [slug]);
+  }, [slug, searchTerm, priceMin, priceMax, inStockOnly]);
 
   if (loading) return <div style={{ padding: 20 }}>Cargando tienda...</div>;
   if (error) return (
@@ -120,7 +135,51 @@ export default function ShopDetail() {
       </header>
 
       <main>
-        <h3>Productos</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ margin: 0 }}>Productos</h3>
+        </div>
+        
+        {/* Filtros */}
+        <div style={{ background: '#f9fafb', padding: 16, borderRadius: 8, marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar productos..."
+            style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', minWidth: 200 }}
+          />
+          <input
+            type="number"
+            value={priceMin}
+            onChange={(e) => setPriceMin(e.target.value)}
+            placeholder="Precio mín."
+            style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', width: 120 }}
+          />
+          <input
+            type="number"
+            value={priceMax}
+            onChange={(e) => setPriceMax(e.target.value)}
+            placeholder="Precio máx."
+            style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #ddd', width: 120 }}
+          />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={inStockOnly}
+              onChange={(e) => setInStockOnly(e.target.checked)}
+            />
+            Solo en stock
+          </label>
+          {(searchTerm || priceMin || priceMax || inStockOnly) && (
+            <button
+              onClick={() => { setSearchTerm(''); setPriceMin(''); setPriceMax(''); setInStockOnly(false); }}
+              style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid #ddd', background: 'white', cursor: 'pointer' }}
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+        
         {(!products || products.length === 0) ? (
           <div style={{ color: '#6b7280', padding: 8 }}>No hay productos disponibles.</div>
         ) : (

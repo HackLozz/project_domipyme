@@ -14,12 +14,15 @@ export default function AdminPanel() {
   const [shops, setShops] = useState([]);
   const [shopsNext, setShopsNext] = useState(null);
   const [shopsPrev, setShopsPrev] = useState(null);
+  const [shopsCount, setShopsCount] = useState(0);
   const [users, setUsers] = useState([]);
   const [usersNext, setUsersNext] = useState(null);
   const [usersPrev, setUsersPrev] = useState(null);
+  const [usersCount, setUsersCount] = useState(0);
   const [products, setProducts] = useState([]);
   const [productsNext, setProductsNext] = useState(null);
   const [productsPrev, setProductsPrev] = useState(null);
+  const [productsCount, setProductsCount] = useState(0);
   const [shopsPage, setShopsPage] = useState(1);
   const [usersPage, setUsersPage] = useState(1);
   const [productsPage, setProductsPage] = useState(1);
@@ -39,11 +42,18 @@ export default function AdminPanel() {
       setFetching(true);
       setError(null);
       try {
+        const shopParams = new URLSearchParams({ limit: pageSize, offset: (shopsPage-1)*pageSize });
+        if (searchShop) shopParams.append('search', searchShop);
+        const userParams = new URLSearchParams({ limit: pageSize, offset: (usersPage-1)*pageSize });
+        if (searchUser) userParams.append('search', searchUser);
+        const productParams = new URLSearchParams({ limit: pageSize, offset: (productsPage-1)*pageSize });
+        if (searchProduct) productParams.append('search', searchProduct);
+        
         const [st, s, u, p] = await Promise.all([
           api.get('auth/admin/stats/'),
-          api.get(`shops/?limit=${pageSize}&offset=${(shopsPage-1)*pageSize}`),
-          api.get(`auth/users/?limit=${pageSize}&offset=${(usersPage-1)*pageSize}`),
-          api.get(`products/?limit=${pageSize}&offset=${(productsPage-1)*pageSize}`),
+          api.get(`shops/?${shopParams.toString()}`),
+          api.get(`auth/users/?${userParams.toString()}`),
+          api.get(`products/?${productParams.toString()}`),
         ]);
         setStats(st.data || null);
         const sData = s.data || {};
@@ -55,6 +65,7 @@ export default function AdminPanel() {
         setShopsNext(sData.next || null); setShopsPrev(sData.previous || null);
         setUsersNext(uData.next || null); setUsersPrev(uData.previous || null);
         setProductsNext(pData.next || null); setProductsPrev(pData.previous || null);
+        setShopsCount(sData.count || 0); setUsersCount(uData.count || 0); setProductsCount(pData.count || 0);
       } catch (err) {
         console.error('Admin load error', err);
         setError('No se pudo cargar datos administrativos');
@@ -63,14 +74,12 @@ export default function AdminPanel() {
       }
     };
     load();
-  }, [shopsPage, usersPage, productsPage]);
+  }, [shopsPage, usersPage, productsPage, searchShop, searchUser, searchProduct]);
 
   if (loading) return <div style={mini.loadingWrap}>Cargando...</div>;
   if (!user || !user.is_staff) return <Navigate to="/" replace />;
 
-  const filteredShops = shops.filter(s => (s.name||'').toLowerCase().includes(searchShop.toLowerCase()) || (s.slug||'').toLowerCase().includes(searchShop.toLowerCase()));
-  const filteredUsers = users.filter(u => (u.username||'').toLowerCase().includes(searchUser.toLowerCase()) || (u.email||'').toLowerCase().includes(searchUser.toLowerCase()));
-  const filteredProducts = products.filter(p => (p.name||'').toLowerCase().includes(searchProduct.toLowerCase()));
+  // Los datos ya vienen filtrados del backend
 
   return (
     <div style={styles.page} className={mounted ? 'page-enter' : ''}>
@@ -179,7 +188,7 @@ export default function AdminPanel() {
           <div style={styles.tableCard} className="card">
             {fetching ? (
               <div style={styles.loading}>Cargando tiendas...</div>
-            ) : filteredShops.length === 0 ? (
+            ) : shops.length === 0 ? (
               <div style={styles.empty}>No hay tiendas</div>
             ) : (
               <table style={styles.table}>
@@ -193,7 +202,7 @@ export default function AdminPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredShops.slice(0, 25).map((s) => (
+                  {shops.map((s) => (
                     <tr key={s.id} style={styles.tr} className="row">
                       <td style={styles.td}>{s.id}</td>
                       <td style={styles.td}><strong>{s.name}</strong></td>
@@ -205,8 +214,9 @@ export default function AdminPanel() {
                 </tbody>
               </table>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
               <button disabled={!shopsPrev} onClick={()=>setShopsPage(p=>Math.max(1,p-1))} style={styles.btnSmall}>Anterior</button>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>Página {shopsPage} {shopsCount > 0 && `de ${Math.ceil(shopsCount/pageSize)}`}</div>
               <button disabled={!shopsNext} onClick={()=>setShopsPage(p=>p+1)} style={styles.btnSmall}>Siguiente</button>
             </div>
           </div>
@@ -220,11 +230,11 @@ export default function AdminPanel() {
             </div>
             {fetching ? (
               <div style={styles.loading}>Cargando usuarios...</div>
-            ) : filteredUsers.length === 0 ? (
+            ) : users.length === 0 ? (
               <div style={styles.empty}>No hay usuarios</div>
             ) : (
               <ul style={styles.list}>
-                {filteredUsers.slice(0, 30).map(u => (
+                {users.map(u => (
                   <li key={u.id} style={styles.listItem} className="row">
                     <div>
                       <div style={styles.itemTitle}>{u.email || u.username}</div>
@@ -235,8 +245,9 @@ export default function AdminPanel() {
                 ))}
               </ul>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
               <button disabled={!usersPrev} onClick={()=>setUsersPage(p=>Math.max(1,p-1))} style={styles.btnSmall}>Anterior</button>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>Página {usersPage} {usersCount > 0 && `de ${Math.ceil(usersCount/pageSize)}`}</div>
               <button disabled={!usersNext} onClick={()=>setUsersPage(p=>p+1)} style={styles.btnSmall}>Siguiente</button>
             </div>
           </div>
@@ -248,11 +259,11 @@ export default function AdminPanel() {
             </div>
             {fetching ? (
               <div style={styles.loading}>Cargando productos...</div>
-            ) : filteredProducts.length === 0 ? (
+            ) : products.length === 0 ? (
               <div style={styles.empty}>No hay productos</div>
             ) : (
               <ul style={styles.list}>
-                {filteredProducts.slice(0, 30).map(p => (
+                {products.map(p => (
                   <li key={p.id} style={styles.listItem} className="row">
                     <div>
                       <div style={styles.itemTitle}>{p.name}</div>
@@ -263,8 +274,9 @@ export default function AdminPanel() {
                 ))}
               </ul>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
               <button disabled={!productsPrev} onClick={()=>setProductsPage(p=>Math.max(1,p-1))} style={styles.btnSmall}>Anterior</button>
+              <div style={{ fontSize: 12, color: '#6b7280' }}>Página {productsPage} {productsCount > 0 && `de ${Math.ceil(productsCount/pageSize)}`}</div>
               <button disabled={!productsNext} onClick={()=>setProductsPage(p=>p+1)} style={styles.btnSmall}>Siguiente</button>
             </div>
           </div>

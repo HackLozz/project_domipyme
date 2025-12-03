@@ -13,6 +13,7 @@ export default function MerchantPanel() {
   const [orders, setOrders] = useState([]);
   const [ordersNext, setOrdersNext] = useState(null);
   const [ordersPrev, setOrdersPrev] = useState(null);
+  const [ordersCount, setOrdersCount] = useState(0);
   const [ordersPage, setOrdersPage] = useState(1);
   const [productsPage, setProductsPage] = useState(1);
   const pageSize = 12;
@@ -49,6 +50,7 @@ export default function MerchantPanel() {
           setOrders(list);
           setOrdersNext(data.next || null);
           setOrdersPrev(data.previous || null);
+          setOrdersCount(data.count || 0);
           const approvedCount = list.filter(o => o.payment_confirmed).length;
           const lastOrderDate = list.length > 0 ? (list[0].created_at || null) : null;
           setMetrics({ approvedCount, lastOrderDate });
@@ -86,7 +88,7 @@ export default function MerchantPanel() {
     return () => { mounted = false; };
   }, [user]);
 
-  const totalRevenue = orders.filter(o => o.payment_confirmed).reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const totalRevenue = stats?.revenue_approved ? Number(stats.revenue_approved) : orders.filter(o => o.payment_confirmed).reduce((sum, o) => sum + Number(o.total || 0), 0);
   const pendingOrders = (stats?.pending ?? orders.filter(o => o.status === 'pending' || !o.payment_confirmed).length);
 
   const filteredOrders = orders.filter(o => {
@@ -283,8 +285,9 @@ export default function MerchantPanel() {
                     ))}
                   </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
                   <button disabled={!ordersPrev} onClick={()=>setOrdersPage(p=>Math.max(1,p-1))} style={styles.btnSmall}>Anterior</button>
+                  <div style={{ fontSize: 12, color: '#6b7280' }}>Página {ordersPage} {ordersCount > 0 && `de ${Math.ceil(ordersCount/pageSize)}`}</div>
                   <button disabled={!ordersNext} onClick={()=>setOrdersPage(p=>p+1)} style={styles.btnSmall}>Siguiente</button>
                 </div>
               </div>

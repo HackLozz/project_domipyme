@@ -134,3 +134,12 @@ class User(AbstractBaseUser, PermissionsMixin):
         Enviar un email al usuario — envoltorio simple sobre django.core.mail.send_mail.
         """
         send_mail(subject, message, from_email or None, [self.email], **kwargs)
+
+    @property
+    def role(self):
+        """Return role string based on user flags for frontend compatibility."""
+        if self.is_superuser or self.is_staff:
+            return 'admin'
+        if self.is_merchant:
+            return 'merchant'
+        return 'customer'

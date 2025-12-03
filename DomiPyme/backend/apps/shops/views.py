@@ -33,10 +33,13 @@ class ShopListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         if not (user and user.is_authenticated and user.is_staff):
             qs = qs.filter(active=True)
-        # Soportar search por query param
-        q = self.request.query_params.get('search')
-        if q:
-            qs = qs.filter(name__icontains=q)
+        
+        # Search filter (name or description)
+        search = self.request.query_params.get('search')
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(Q(name__icontains=search) | Q(description__icontains=search))
+        
         return qs
 
     def perform_create(self, serializer):
@@ -197,9 +200,41 @@ class ProductViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
+        # Filter by shop
         shop_id = self.request.query_params.get('shop')
         if shop_id:
             qs = qs.filter(shop_id=shop_id)
+
+        # Search filter (name or description)
+        search = self.request.query_params.get('search')
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(Q(name__icontains=search) | Q(description__icontains=search))
+
+        # Category filter
+        category = self.request.query_params.get('category')
+        if category and 'category' in field_names:
+            qs = qs.filter(category_id=category)
+
+        # Price range filters
+        price_min = self.request.query_params.get('price_min')
+        if price_min:
+            try:
+                qs = qs.filter(price__gte=float(price_min))
+            except ValueError:
+                pass
+
+        price_max = self.request.query_params.get('price_max')
+        if price_max:
+            try:
+                qs = qs.filter(price__lte=float(price_max))
+            except ValueError:
+                pass
+
+        # In stock filter
+        in_stock = self.request.query_params.get('in_stock')
+        if in_stock and in_stock.lower() in ['true', '1', 'yes']:
+            qs = qs.filter(stock__gt=0)
 
         return qs
 
