@@ -191,7 +191,13 @@ class ProductViewSet(viewsets.ModelViewSet):
         return [IsMerchantOrAdmin()]
 
     def get_queryset(self):
-        qs = self.Product.objects.filter(active=True).order_by('-created_at')
+        # Para actions administrativas (update_stock, toggle_active), no filtrar por active
+        if self.action in ['update_stock', 'toggle_active', 'update', 'partial_update', 'destroy']:
+            qs = self.Product.objects.all()
+        else:
+            qs = self.Product.objects.filter(active=True)
+        
+        qs = qs.order_by('-created_at')
 
         field_names = {f.name for f in self.Product._meta.get_fields()}
         if 'shop' in field_names:
@@ -297,5 +303,99 @@ class ProductViewSet(viewsets.ModelViewSet):
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], url_path='update-stock', permission_classes=[IsAuthenticated])
+    def update_stock(self, request, pk=None):
+        """
+        PATCH /api/products/<id>/update-stock/ -> actualiza solo el stock de un producto.
+        Body: {"stock": <new_value>}
+        """
+        product = self.get_object()
+        user = request.user
+        
+        # Verificar ownership
+        if not user.is_staff and product.shop.owner != user:
+            raise exceptions.PermissionDenied("No tienes permisos para actualizar este producto.")
+        
+        new_stock = request.data.get('stock')
+        if new_stock is None:
+            return Response({'error': 'Se requiere el campo stock.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            new_stock = int(new_stock)
+            if new_stock < 0:
+                return Response({'error': 'El stock no puede ser negativo.'}, status=status.HTTP_400_BAD_REQUEST)
+        except (ValueError, TypeError):
+            return Response({'error': 'El stock debe ser un número entero.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        product.stock = new_stock
+        product.save(update_fields=['stock'])
+        
+        serializer = self.get_serializer(product)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['patch'], url_path='toggle-active', permission_classes=[IsAuthenticated])
+    def toggle_active(self, request, pk=None):
+        """
+        PATCH /api/products/<id>/toggle_active/ -> activa/desactiva un producto.
+        Body: {"active": true/false} (opcional, si no se envía hace toggle)
+        """
+        product = self.get_object()
+        user = request.user
+        
+        # Verificar ownership
+        if not user.is_staff and product.shop.owner != user:
+            raise exceptions.PermissionDenied("No tienes permisos para actualizar este producto.")
+        
+        active = request.data.get('active')
+        if active is None:
+            # Toggle si no se especifica
+            product.active = not product.active
+        else:
+            # Convertir a boolean de manera robusta
+            if isinstance(active, bool):
+                product.active = active
+            elif isinstance(active, str):
+                product.active = active.lower() in ('true', '1', 'yes')
+            else:
+                product.active = bool(active)
+        
+        product.save(update_fields=['active'])
+        
+        serializer = self.get_serializer(product)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='low-stock', permission_classes=[IsAuthenticated])
+    def low_stock(self, request):
+        """
+        GET /api/products/low_stock/?threshold=10 -> productos con stock bajo del merchant.
+        Threshold por defecto: 10. Solo para merchants.
+        """
+        user = request.user
+        
+        # Solo merchants pueden ver su inventario bajo
+        if not user.is_merchant:
+            raise exceptions.PermissionDenied("Solo los comerciantes pueden acceder a esta función.")
+        
+        threshold = request.query_params.get('threshold', 10)
+        
+        try:
+            threshold = int(threshold)
+        except (ValueError, TypeError):
+            threshold = 10
+        
+        qs = ProductModel.objects.filter(
+            shop__owner=user,
+            active=True,
+            stock__lte=threshold
+        ).select_related('shop').order_by('stock', '-created_at')
+        
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

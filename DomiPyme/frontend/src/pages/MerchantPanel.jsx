@@ -21,6 +21,9 @@ export default function MerchantPanel() {
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
   const [metrics, setMetrics] = useState({ lastOrderDate: null, approvedCount: 0 });
+  const [lowStockProducts, setLowStockProducts] = useState([]);
+  const [editingStock, setEditingStock] = useState(null); // {productId, value}
+  const [showInventory, setShowInventory] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 10);
@@ -84,7 +87,20 @@ export default function MerchantPanel() {
         if (mounted) setStats(resp.data);
       } catch (e) {}
     };
-    if (user && user.role === 'merchant') loadStats();
+    const loadLowStock = async () => {
+      try {
+        const resp = await api.get('products/low-stock/?threshold=10');
+        if (mounted) {
+          const data = resp.data;
+          const list = Array.isArray(data) ? data : (data.results || []);
+          setLowStockProducts(list);
+        }
+      } catch (e) {}
+    };
+    if (user && user.role === 'merchant') {
+      loadStats();
+      loadLowStock();
+    }
     return () => { mounted = false; };
   }, [user]);
 
@@ -98,6 +114,31 @@ export default function MerchantPanel() {
     if (orderStatusFilter === 'delivered') return o.status === 'delivered';
     return true;
   });
+
+  const handleUpdateStock = async (productId, newStock) => {
+    try {
+      await api.patch(`products/${productId}/update-stock/`, { stock: newStock });
+      // Actualizar localmente
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
+      setLowStockProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
+      setEditingStock(null);
+    } catch (e) {
+      console.error('Error updating stock:', e);
+      alert('No se pudo actualizar el stock. Inténtalo de nuevo.');
+    }
+  };
+
+  const handleToggleActive = async (productId, currentActive) => {
+    try {
+      const resp = await api.patch(`products/${productId}/toggle-active/`, { active: !currentActive });
+      // Actualizar localmente
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, active: resp.data.active } : p));
+      setLowStockProducts(prev => prev.map(p => p.id === productId ? { ...p, active: resp.data.active } : p));
+    } catch (e) {
+      console.error('Error toggling active:', e);
+      alert('No se pudo cambiar el estado. Inténtalo de nuevo.');
+    }
+  };
 
   return (
     <div style={styles.container} className={mounted ? 'page-enter' : ''}>
@@ -190,6 +231,86 @@ export default function MerchantPanel() {
                 </div>
               </div>
 
+              {/* Alerta de stock bajo */}
+              {lowStockProducts.length > 0 && (
+                <div style={styles.alertCard}>
+                  <div style={styles.alertHeader}>
+                    <span style={styles.alertIcon}>⚠️</span>
+                    <div>
+                      <div style={styles.alertTitle}>Productos con stock bajo</div>
+                      <div style={styles.alertText}>{lowStockProducts.length} producto(s) con stock ≤ 10</div>
+                    </div>
+                    <button
+                      onClick={() => setShowInventory(!showInventory)}
+                      style={styles.btnToggle}
+                    >
+                      {showInventory ? 'Ocultar' : 'Ver'}
+                    </button>
+                  </div>
+                  
+                  {showInventory && (
+                    <div style={styles.inventoryList}>
+                      {lowStockProducts.map(p => (
+                        <div key={p.id} style={styles.inventoryItem}>
+                          <div style={styles.inventoryInfo}>
+                            <div style={styles.inventoryName}>{p.name}</div>
+                            <div style={styles.inventoryMeta}>
+                              {fmt(p.price)}
+                              {p.stock === 0 ? (
+                                <span style={styles.badgeDanger}>Sin stock</span>
+                              ) : (
+                                <span style={styles.badgeWarning}>Stock: {p.stock}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div style={styles.inventoryActions}>
+                            {editingStock?.productId === p.id ? (
+                              <>
+                                <input
+                                  type="number"
+                                  value={editingStock.value}
+                                  onChange={(e) => setEditingStock({ productId: p.id, value: e.target.value })}
+                                  style={styles.stockInput}
+                                  autoFocus
+                                  min="0"
+                                />
+                                <button
+                                  onClick={() => handleUpdateStock(p.id, editingStock.value)}
+                                  style={styles.btnSave}
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  onClick={() => setEditingStock(null)}
+                                  style={styles.btnCancel}
+                                >
+                                  ✗
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => setEditingStock({ productId: p.id, value: p.stock })}
+                                  style={styles.btnStock}
+                                >
+                                  Actualizar stock
+                                </button>
+                                <button
+                                  onClick={() => handleToggleActive(p.id, p.active)}
+                                  style={p.active ? styles.btnDeactivate : styles.btnActivate}
+                                >
+                                  {p.active ? 'Desactivar' : 'Activar'}
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={styles.card}>
                 <div style={styles.cardHeader}>
                   <h3 style={styles.cardTitle}>Productos recientes</h3>
@@ -208,14 +329,53 @@ export default function MerchantPanel() {
                     {products.slice(0, 5).map((p) => (
                       <div key={p.id} style={styles.productItem}>
                         <div style={styles.productInfo}>
-                          <div style={styles.productName}>{p.name}</div>
+                          <div style={styles.productName}>
+                            {p.name}
+                            {p.stock <= 10 && <span style={styles.badgeWarningSmall}>⚠️</span>}
+                            {!p.active && <span style={styles.badgeInactiveSmall}>Inactivo</span>}
+                          </div>
                           <div style={styles.productMeta}>
                             {fmt(p.price)} · Stock: {p.stock || 0}
                           </div>
                         </div>
-                        <Link to={`/merchant/products/${p.id}/edit`} style={styles.btnSmall}>
-                          Editar
-                        </Link>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {editingStock?.productId === p.id ? (
+                            <>
+                              <input
+                                type="number"
+                                value={editingStock.value}
+                                onChange={(e) => setEditingStock({ productId: p.id, value: e.target.value })}
+                                style={styles.stockInputSmall}
+                                autoFocus
+                                min="0"
+                              />
+                              <button
+                                onClick={() => handleUpdateStock(p.id, editingStock.value)}
+                                style={styles.btnSmall}
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={() => setEditingStock(null)}
+                                style={styles.btnSmall}
+                              >
+                                ✗
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setEditingStock({ productId: p.id, value: p.stock })}
+                                style={styles.btnSmall}
+                              >
+                                Stock
+                              </button>
+                              <Link to={`/merchant/products/${p.id}/edit`} style={styles.btnSmall}>
+                                Editar
+                              </Link>
+                            </>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -523,6 +683,172 @@ const styles = {
     color: '#991b1b',
     borderRadius: 6,
     fontSize: 11,
+    fontWeight: 700,
+  },
+  // Inventory styles
+  alertCard: {
+    background: '#fffbeb',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    border: '1px solid #fbbf24',
+  },
+  alertHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  },
+  alertIcon: {
+    fontSize: 24,
+  },
+  alertTitle: {
+    fontSize: 15,
+    fontWeight: 700,
+    color: '#92400e',
+  },
+  alertText: {
+    fontSize: 13,
+    color: '#b45309',
+    marginTop: 2,
+  },
+  btnToggle: {
+    marginLeft: 'auto',
+    padding: '6px 12px',
+    background: '#fff',
+    border: '1px solid #fbbf24',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#92400e',
+  },
+  inventoryList: {
+    marginTop: 12,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  inventoryItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    background: '#fff',
+    borderRadius: 8,
+    border: '1px solid #fbbf24',
+  },
+  inventoryInfo: {
+    flex: 1,
+  },
+  inventoryName: {
+    fontSize: 14,
+    fontWeight: 600,
+    color: '#111827',
+    marginBottom: 4,
+  },
+  inventoryMeta: {
+    fontSize: 12,
+    color: '#6b7280',
+    display: 'flex',
+    gap: 8,
+    alignItems: 'center',
+  },
+  inventoryActions: {
+    display: 'flex',
+    gap: 6,
+    alignItems: 'center',
+  },
+  stockInput: {
+    width: 80,
+    padding: '6px 8px',
+    border: '1px solid #d1d5db',
+    borderRadius: 6,
+    fontSize: 13,
+  },
+  stockInputSmall: {
+    width: 60,
+    padding: '4px 6px',
+    border: '1px solid #d1d5db',
+    borderRadius: 6,
+    fontSize: 12,
+  },
+  btnSave: {
+    padding: '6px 10px',
+    background: '#10b981',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  btnCancel: {
+    padding: '6px 10px',
+    background: '#ef4444',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  btnStock: {
+    padding: '6px 10px',
+    background: '#3b82f6',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  btnActivate: {
+    padding: '6px 10px',
+    background: '#10b981',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  btnDeactivate: {
+    padding: '6px 10px',
+    background: '#ef4444',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 6,
+    cursor: 'pointer',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  badgeDanger: {
+    padding: '3px 8px',
+    background: '#fee2e2',
+    color: '#991b1b',
+    borderRadius: 6,
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  badgeWarning: {
+    padding: '3px 8px',
+    background: '#fef3c7',
+    color: '#92400e',
+    borderRadius: 6,
+    fontSize: 11,
+    fontWeight: 700,
+  },
+  badgeWarningSmall: {
+    marginLeft: 6,
+    fontSize: 14,
+  },
+  badgeInactiveSmall: {
+    marginLeft: 6,
+    padding: '2px 6px',
+    background: '#f3f4f6',
+    color: '#6b7280',
+    borderRadius: 4,
+    fontSize: 10,
     fontWeight: 700,
   },
   linkAll: {
