@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const nav = useNavigate();
@@ -84,6 +85,8 @@ export default function Navbar() {
             {user.role === 'admin' && <Link to="/admin" style={styles.link}>Panel Admin</Link>}
             {user.role === 'merchant' && <Link to="/merchant" style={styles.link}>Panel Comercio</Link>}
             {user.role === 'customer' && <Link to="/dashboard" style={styles.link}>Dashboard</Link>}
+
+            <NotificationBell />
 
             <div style={{ position: 'relative' }} ref={menuRef}>
               <button style={styles.userBtn} onClick={() => setMenuOpen(v=>!v)} aria-haspopup="menu" aria-expanded={menuOpen}>

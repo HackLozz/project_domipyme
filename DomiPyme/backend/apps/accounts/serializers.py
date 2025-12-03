@@ -159,3 +159,28 @@ class AdminUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = tuple(_admin_fields)
+
+
+# ===== Notification Serializer =====
+from .models_notification import Notification
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """
+    Serializer para notificaciones.
+    """
+    class Meta:
+        model = Notification
+        fields = [
+            'id',
+            'notification_type',
+            'title',
+            'message',
+            'read',
+            'link_url',
+            'order_id',
+            'shop_id',
+            'product_id',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']

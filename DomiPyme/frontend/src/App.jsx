@@ -24,6 +24,7 @@ import Profile from './pages/Profile';
 import OrderHistory from './pages/OrderHistory';
 import OrderDetail from './pages/OrderDetail';
 import PlatformGuide from './pages/PlatformGuide';
+import NotificationsPage from './pages/NotificationsPage';
 
 // Merchant subpages
 import MerchantCreateShop from './pages/merchant/CreateShop';
@@ -93,6 +94,16 @@ export default function App() {
           element={
             <PrivateRoute>
               <Dashboard />
+            </PrivateRoute>
+          }
+        />
+
+        {/* Notifications */}
+        <Route
+          path="/notifications"
+          element={
+            <PrivateRoute>
+              <NotificationsPage />
             </PrivateRoute>
           }
         />

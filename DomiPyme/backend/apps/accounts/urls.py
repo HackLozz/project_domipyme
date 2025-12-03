@@ -11,12 +11,14 @@ from .views import (
     PasswordResetConfirmView,
     AdminUserViewSet,
     AdminStatsView,
+    NotificationViewSet,
 )
 
 app_name = "accounts"
 
 router = routers.DefaultRouter()
 router.register(r'users', AdminUserViewSet, basename='admin-users')
+router.register(r'notifications', NotificationViewSet, basename='notification')
 
 urlpatterns = [
     path('', include(router.urls)),

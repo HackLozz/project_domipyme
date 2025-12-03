@@ -143,3 +143,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         if self.is_merchant:
             return 'merchant'
         return 'customer'
+
+
+# Import Notification model
+from .models_notification import Notification

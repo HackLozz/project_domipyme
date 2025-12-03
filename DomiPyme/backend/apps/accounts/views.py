@@ -252,3 +252,97 @@ class AdminStatsView(APIView):
             "generated_at": now.isoformat(),
         }
         return Response(data, status=status.HTTP_200_OK)
+
+
+# ===== Notification ViewSet =====
+from rest_framework.decorators import action
+from .models_notification import Notification
+from .serializers import NotificationSerializer
+
+
+class NotificationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestionar notificaciones del usuario.
+    - list: obtener todas las notificaciones del usuario autenticado
+    - retrieve: obtener una notificación específica
+    - mark_as_read: marcar una notificación como leída
+    - mark_all_as_read: marcar todas como leídas
+    - unread_count: obtener el contador de no leídas
+    - delete: eliminar una notificación
+    """
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Solo devuelve notificaciones del usuario autenticado."""
+        return Notification.objects.filter(user=self.request.user)
+    
+    def create(self, request, *args, **kwargs):
+        """Deshabilitar creación manual vía API (se crean automáticamente por el sistema)."""
+        return Response(
+            {"detail": "No se pueden crear notificaciones manualmente."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    def update(self, request, *args, **kwargs):
+        """Solo permitir actualización parcial del campo 'read'."""
+        if 'read' not in request.data:
+            return Response(
+                {"detail": "Solo se puede actualizar el campo 'read'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return super().update(request, *args, **kwargs)
+    
+    @action(detail=True, methods=['patch'], url_path='mark-as-read')
+    def mark_as_read(self, request, pk=None):
+        """
+        PATCH /api/notifications/<id>/mark-as-read/
+        Marca una notificación como leída.
+        """
+        notification = self.get_object()
+        notification.mark_as_read()
+        serializer = self.get_serializer(notification)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['patch'], url_path='mark-all-as-read')
+    def mark_all_as_read(self, request):
+        """
+        PATCH /api/notifications/mark-all-as-read/
+        Marca todas las notificaciones del usuario como leídas.
+        """
+        updated = Notification.objects.filter(
+            user=request.user,
+            read=False
+        ).update(read=True)
+        
+        return Response(
+            {"detail": f"{updated} notificaciones marcadas como leídas."},
+            status=status.HTTP_200_OK
+        )
+    
+    @action(detail=False, methods=['get'], url_path='unread-count')
+    def unread_count(self, request):
+        """
+        GET /api/notifications/unread-count/
+        Obtiene el número de notificaciones no leídas.
+        """
+        count = Notification.objects.filter(
+            user=request.user,
+            read=False
+        ).count()
+        
+        return Response(
+            {"unread_count": count},
+            status=status.HTTP_200_OK
+        )
+    
+    @action(detail=False, methods=['get'], url_path='recent')
+    def recent(self, request):
+        """
+        GET /api/notifications/recent/?limit=10
+        Obtiene las notificaciones recientes (por defecto las últimas 10).
+        """
+        limit = int(request.query_params.get('limit', 10))
+        notifications = self.get_queryset()[:limit]
+        serializer = self.get_serializer(notifications, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
