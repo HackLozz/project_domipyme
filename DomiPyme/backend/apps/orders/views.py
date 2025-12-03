@@ -1,12 +1,21 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
-from .serializers import CheckoutSerializer, OrderSerializer
-from .models import Order, OrderItem
+from rest_framework import status, permissions, viewsets
+from rest_framework.decorators import action
+from .serializers import (
+    CheckoutSerializer,
+    OrderSerializer,
+    CartSerializer,
+    CartItemSerializer,
+    AddToCartSerializer,
+    UpdateCartItemSerializer,
+)
+from .models import Order, OrderItem, Cart, CartItem
 from apps.shops.models import Product, Shop
 from decimal import Decimal
 from django.db import transaction
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from django.shortcuts import get_object_or_404
 
 class CheckoutView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -220,3 +229,175 @@ class OrderStatusUpdateView(APIView):
         order.save()
         serializer = OrderSerializer(order)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CartViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestionar el carrito de compras
+    - Usuarios anónimos: usa session_key
+    - Usuarios autenticados: usa user FK
+    - Soporta merge de carrito anónimo al hacer login
+    """
+    serializer_class = CartSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        """Obtener el carrito del usuario actual"""
+        if self.request.user.is_authenticated:
+            return Cart.objects.filter(user=self.request.user).prefetch_related('items__product')
+        else:
+            session_key = self.request.session.session_key
+            if not session_key:
+                self.request.session.create()
+                session_key = self.request.session.session_key
+            return Cart.objects.filter(session_key=session_key).prefetch_related('items__product')
+
+    def get_or_create_cart(self):
+        """Obtener o crear el carrito del usuario/sesión"""
+        if self.request.user.is_authenticated:
+            cart, created = Cart.objects.get_or_create(user=self.request.user)
+        else:
+            session_key = self.request.session.session_key
+            if not session_key:
+                self.request.session.create()
+                session_key = self.request.session.session_key
+            cart, created = Cart.objects.get_or_create(session_key=session_key)
+        return cart
+
+    def list(self, request, *args, **kwargs):
+        """GET /api/cart/ - Obtener el carrito actual"""
+        cart = self.get_or_create_cart()
+        serializer = self.get_serializer(cart)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], url_path='add-item')
+    def add_item(self, request):
+        """
+        POST /api/cart/add-item/
+        Body: {"product_id": 1, "quantity": 2}
+        Agregar un producto al carrito o incrementar cantidad
+        """
+        serializer = AddToCartSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        product_id = serializer.validated_data['product_id']
+        quantity = serializer.validated_data['quantity']
+
+        # Validar producto
+        product = get_object_or_404(Product, id=product_id, active=True)
+
+        # Validar stock
+        if product.stock < quantity:
+            return Response(
+                {'detail': f'Stock insuficiente. Solo hay {product.stock} unidades disponibles'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        cart = self.get_or_create_cart()
+
+        # Buscar si ya existe el item
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            defaults={'quantity': quantity, 'price_snapshot': product.price}
+        )
+
+        if not created:
+            # Incrementar cantidad
+            new_quantity = cart_item.quantity + quantity
+            if new_quantity > product.stock:
+                return Response(
+                    {'detail': f'Stock insuficiente. Solo hay {product.stock} unidades disponibles'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            cart_item.quantity = new_quantity
+            cart_item.save()
+
+        cart_serializer = CartSerializer(cart, context={'request': request})
+        return Response(cart_serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['patch'], url_path='update-item/(?P<item_id>[^/.]+)')
+    def update_item(self, request, item_id=None):
+        """
+        PATCH /api/cart/update-item/{item_id}/
+        Body: {"quantity": 3}
+        Actualizar la cantidad de un item (si quantity=0, elimina el item)
+        """
+        serializer = UpdateCartItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        cart = self.get_or_create_cart()
+        cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
+
+        quantity = serializer.validated_data['quantity']
+
+        if quantity == 0:
+            # Eliminar item
+            cart_item.delete()
+        else:
+            # Validar stock
+            if quantity > cart_item.product.stock:
+                return Response(
+                    {'detail': f'Stock insuficiente. Solo hay {cart_item.product.stock} unidades disponibles'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            cart_item.quantity = quantity
+            cart_item.save()
+
+        cart_serializer = CartSerializer(cart, context={'request': request})
+        return Response(cart_serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['delete'], url_path='remove-item/(?P<item_id>[^/.]+)')
+    def remove_item(self, request, item_id=None):
+        """
+        DELETE /api/cart/remove-item/{item_id}/
+        Eliminar un item del carrito
+        """
+        cart = self.get_or_create_cart()
+        cart_item = get_object_or_404(CartItem, id=item_id, cart=cart)
+        cart_item.delete()
+
+        cart_serializer = CartSerializer(cart, context={'request': request})
+        return Response(cart_serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='clear')
+    def clear_cart(self, request):
+        """
+        POST /api/cart/clear/
+        Vaciar el carrito
+        """
+        cart = self.get_or_create_cart()
+        cart.clear()
+
+        cart_serializer = CartSerializer(cart, context={'request': request})
+        return Response(cart_serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='merge-anonymous', permission_classes=[IsAuthenticated])
+    def merge_anonymous(self, request):
+        """
+        POST /api/cart/merge-anonymous/
+        Body: {"session_key": "abc123..."}
+        Fusionar carrito anónimo con el carrito del usuario autenticado
+        Usado al hacer login
+        """
+        session_key = request.data.get('session_key')
+        if not session_key:
+            return Response(
+                {'detail': 'session_key es requerido'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Obtener carrito del usuario autenticado
+        user_cart, _ = Cart.objects.get_or_create(user=request.user)
+
+        # Buscar carrito anónimo
+        try:
+            anonymous_cart = Cart.objects.get(session_key=session_key, user__isnull=True)
+            # Fusionar carritos
+            user_cart.merge_with(anonymous_cart)
+        except Cart.DoesNotExist:
+            # No hay carrito anónimo, no hacer nada
+            pass
+
+        cart_serializer = CartSerializer(user_cart, context={'request': request})
+        return Response(cart_serializer.data, status=status.HTTP_200_OK)

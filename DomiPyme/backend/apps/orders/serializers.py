@@ -1,5 +1,82 @@
 from rest_framework import serializers
-from .models import Order, OrderItem
+from .models import Order, OrderItem, Cart, CartItem
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    """Serializer para CartItem con información del producto"""
+    product_id = serializers.IntegerField(source='product.id', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_image = serializers.SerializerMethodField()
+    product_stock = serializers.IntegerField(source='product.stock', read_only=True)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    current_price = serializers.DecimalField(
+        source='product.price',
+        max_digits=10,
+        decimal_places=2,
+        read_only=True
+    )
+
+    class Meta:
+        model = CartItem
+        fields = [
+            'id',
+            'product_id',
+            'product_name',
+            'product_image',
+            'product_stock',
+            'quantity',
+            'price_snapshot',
+            'current_price',
+            'total_price',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'price_snapshot', 'created_at', 'updated_at']
+
+    def get_product_image(self, obj):
+        """Obtener la primera imagen del producto"""
+        if obj.product and hasattr(obj.product, 'images'):
+            first_image = obj.product.images.filter(is_primary=True).first()
+            if not first_image:
+                first_image = obj.product.images.first()
+            if first_image and first_image.image:
+                request = self.context.get('request')
+                if request:
+                    return request.build_absolute_uri(first_image.image.url)
+                return first_image.image.url
+        return None
+
+
+class CartSerializer(serializers.ModelSerializer):
+    """Serializer para Cart con items y totales"""
+    items = CartItemSerializer(many=True, read_only=True)
+    total_items = serializers.IntegerField(read_only=True)
+    subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = Cart
+        fields = [
+            'id',
+            'user',
+            'items',
+            'total_items',
+            'subtotal',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+
+class AddToCartSerializer(serializers.Serializer):
+    """Serializer para agregar un producto al carrito"""
+    product_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=1, default=1)
+
+
+class UpdateCartItemSerializer(serializers.Serializer):
+    """Serializer para actualizar la cantidad de un item"""
+    quantity = serializers.IntegerField(min_value=0)
+
 
 class OrderItemInputSerializer(serializers.Serializer):
     product = serializers.IntegerField()
