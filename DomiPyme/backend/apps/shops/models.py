@@ -2,7 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.text import slugify
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 User = settings.AUTH_USER_MODEL
 
@@ -92,6 +92,28 @@ class Product(models.Model):
     def all_images(self):
         """Devuelve todas las imágenes del producto ordenadas"""
         return self.images.order_by('order', 'created_at')
+    
+    @property
+    def avg_rating(self):
+        """Devuelve el rating promedio del producto"""
+        from django.db.models import Avg
+        avg = self.reviews.aggregate(avg_rating=Avg('rating'))['avg_rating']
+        return round(avg, 2) if avg else None
+    
+    @property
+    def review_count(self):
+        """Devuelve el número total de reseñas"""
+        return self.reviews.count()
+    
+    @property
+    def rating_distribution(self):
+        """Devuelve la distribución de ratings (1-5 estrellas)"""
+        from django.db.models import Count
+        distribution = {i: 0 for i in range(1, 6)}
+        counts = self.reviews.values('rating').annotate(count=Count('rating'))
+        for item in counts:
+            distribution[item['rating']] = item['count']
+        return distribution
 
 
 class ProductImage(models.Model):
@@ -129,3 +151,59 @@ class ProductImage(models.Model):
             self.is_primary = True
         
         super().save(*args, **kwargs)
+
+
+class Review(models.Model):
+    """
+    Modelo para reseñas y valoraciones de productos.
+    Permite a los clientes dejar ratings (1-5 estrellas) y comentarios.
+    """
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
+    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name="reviews")
+    rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Rating from 1 to 5 stars"
+    )
+    comment = models.TextField(blank=True, help_text="Optional review comment")
+    verified_purchase = models.BooleanField(
+        default=False,
+        help_text="True if user purchased this product"
+    )
+    helpful_count = models.IntegerField(
+        default=0,
+        help_text="Number of users who found this review helpful"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Product Review"
+        verbose_name_plural = "Product Reviews"
+        unique_together = ['product', 'user']  # Un usuario solo puede dejar una reseña por producto
+        indexes = [
+            models.Index(fields=['product', '-created_at']),
+            models.Index(fields=['product', '-rating']),
+            models.Index(fields=['user', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.product.name} ({self.rating}★)"
+
+
+class ReviewHelpful(models.Model):
+    """
+    Modelo para tracking de usuarios que marcaron una reseña como útil.
+    Evita que un usuario marque la misma reseña múltiples veces.
+    """
+    review = models.ForeignKey(Review, on_delete=models.CASCADE, related_name="helpful_votes")
+    user = models.ForeignKey('accounts.User', on_delete=models.CASCADE, related_name="helpful_reviews")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ['review', 'user']
+        verbose_name = "Review Helpful Vote"
+        verbose_name_plural = "Review Helpful Votes"
+
+    def __str__(self):
+        return f"{self.user.email} found review #{self.review.id} helpful"

@@ -823,3 +823,175 @@ class ProductImageViewSet(viewsets.ModelViewSet):
             'message': f'{len(created_images)} imágenes subidas exitosamente.',
             'images': serializer.data
         }, status=status.HTTP_201_CREATED)
+
+
+# ----- Review ViewSet -----
+class ReviewViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestionar reseñas de productos.
+    - List/Create: GET/POST /api/reviews/
+    - Retrieve/Update/Delete: GET/PUT/PATCH/DELETE /api/reviews/{id}/
+    - Filtros: ?product=<id>, ?user=<id>, ?rating=<1-5>
+    - Custom actions: my-reviews/, mark-helpful/{id}/, product-reviews/<product_id>/
+    """
+    from .models import Review, ReviewHelpful
+    from .serializers import ReviewSerializer
+    
+    queryset = Review.objects.select_related('product', 'user').all()
+    serializer_class = ReviewSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        """Filtrar reseñas por product, user, rating"""
+        queryset = self.queryset
+        
+        # Filtrar por producto
+        product_id = self.request.query_params.get('product')
+        if product_id:
+            queryset = queryset.filter(product_id=product_id)
+        
+        # Filtrar por usuario
+        user_id = self.request.query_params.get('user')
+        if user_id:
+            queryset = queryset.filter(user_id=user_id)
+        
+        # Filtrar por rating
+        rating = self.request.query_params.get('rating')
+        if rating:
+            try:
+                queryset = queryset.filter(rating=int(rating))
+            except ValueError:
+                pass
+        
+        # Filtrar por verified_purchase
+        verified = self.request.query_params.get('verified')
+        if verified is not None:
+            queryset = queryset.filter(verified_purchase=verified.lower() in ['true', '1', 'yes'])
+        
+        return queryset
+
+    def perform_create(self, serializer):
+        """Solo usuarios autenticados pueden crear reseñas"""
+        user = self.request.user
+        if not user.is_authenticated:
+            raise exceptions.PermissionDenied("Debes estar autenticado para dejar una reseña.")
+        
+        product_id = serializer.validated_data.get('product').id
+        product = get_object_or_404(ProductModel, id=product_id)
+        
+        # Verificar si el usuario ya dejó una reseña para este producto
+        from .models import Review
+        if Review.objects.filter(product=product, user=user).exists():
+            raise exceptions.ValidationError("Ya dejaste una reseña para este producto. Puedes editarla en lugar de crear una nueva.")
+        
+        # TODO: Verificar si el usuario compró el producto (verified_purchase)
+        # Por ahora, siempre es False
+        verified_purchase = False
+        
+        serializer.save(user=user, verified_purchase=verified_purchase)
+
+    def perform_update(self, serializer):
+        """Solo el autor de la reseña puede actualizarla"""
+        instance = self.get_object()
+        user = self.request.user
+        
+        if instance.user != user and not user.is_staff:
+            raise exceptions.PermissionDenied("Solo puedes editar tus propias reseñas.")
+        
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """Solo el autor o staff pueden eliminar una reseña"""
+        user = self.request.user
+        
+        if instance.user != user and not user.is_staff:
+            raise exceptions.PermissionDenied("Solo puedes eliminar tus propias reseñas.")
+        
+        instance.delete()
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def my_reviews(self, request):
+        """
+        GET /api/reviews/my-reviews/
+        Obtener todas las reseñas del usuario autenticado
+        """
+        user = request.user
+        reviews = self.queryset.filter(user=user)
+        
+        page = self.paginate_queryset(reviews)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(reviews, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated], url_path='mark-helpful')
+    def mark_helpful(self, request, pk=None):
+        """
+        POST /api/reviews/{id}/mark-helpful/
+        Marcar una reseña como útil (toggle)
+        """
+        from .models import Review, ReviewHelpful
+        
+        review = self.get_object()
+        user = request.user
+        
+        # No permitir marcar la propia reseña como útil
+        if review.user == user:
+            return Response(
+                {'error': 'No puedes marcar tu propia reseña como útil.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Toggle: si ya existe, eliminar; si no, crear
+        helpful, created = ReviewHelpful.objects.get_or_create(review=review, user=user)
+        
+        if not created:
+            # Ya existía, eliminar (toggle off)
+            helpful.delete()
+            review.helpful_count = max(0, review.helpful_count - 1)
+            review.save()
+            message = 'Marcaste esta reseña como no útil.'
+            is_helpful = False
+        else:
+            # Se creó (toggle on)
+            review.helpful_count += 1
+            review.save()
+            message = 'Marcaste esta reseña como útil.'
+            is_helpful = True
+        
+        serializer = self.get_serializer(review)
+        return Response({
+            'message': message,
+            'is_helpful': is_helpful,
+            'helpful_count': review.helpful_count,
+            'review': serializer.data
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='product-reviews/(?P<product_id>[^/.]+)')
+    def product_reviews(self, request, product_id=None):
+        """
+        GET /api/reviews/product-reviews/<product_id>/
+        Obtener todas las reseñas de un producto específico con paginación
+        """
+        reviews = self.queryset.filter(product_id=product_id)
+        
+        # Ordenar por parámetro
+        sort_by = request.query_params.get('sort', 'recent')
+        if sort_by == 'helpful':
+            reviews = reviews.order_by('-helpful_count', '-created_at')
+        elif sort_by == 'rating_high':
+            reviews = reviews.order_by('-rating', '-created_at')
+        elif sort_by == 'rating_low':
+            reviews = reviews.order_by('rating', '-created_at')
+        else:  # 'recent' por defecto
+            reviews = reviews.order_by('-created_at')
+        
+        page = self.paginate_queryset(reviews)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(reviews, many=True)
+        return Response(serializer.data)
