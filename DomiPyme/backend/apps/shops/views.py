@@ -4,7 +4,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.apps import apps
 from django.shortcuts import get_object_or_404
-from django.db import IntegrityError
+from django.db import IntegrityError, models
 from django.utils.text import slugify
 
 from .models import Shop, Product as ShopProduct
@@ -545,3 +545,281 @@ class ProductViewSet(viewsets.ModelViewSet):
             },
             'products_by_category': list(products_by_category),
         }, status=status.HTTP_200_OK)
+
+
+# ----- Category ViewSet -----
+class CategoryViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestionar categorías de productos por tienda.
+    - List/Create: GET/POST /api/categories/
+    - Retrieve/Update/Delete: GET/PUT/PATCH/DELETE /api/categories/{id}/
+    - Filtros: ?shop=<shop_id>, ?active=true
+    - Custom actions: by-shop/<shop_id>/, reorder/
+    """
+    from .models import Category
+    from .serializers import CategorySerializer
+    
+    queryset = Category.objects.select_related('shop').all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        """Filtrar categorías por shop y active status"""
+        queryset = self.queryset
+        
+        # Filtrar por shop
+        shop_id = self.request.query_params.get('shop')
+        if shop_id:
+            queryset = queryset.filter(shop_id=shop_id)
+        
+        # Filtrar por active
+        active = self.request.query_params.get('active')
+        if active is not None:
+            queryset = queryset.filter(active=active.lower() in ['true', '1', 'yes'])
+        
+        return queryset
+
+    def perform_create(self, serializer):
+        """Solo el owner de la tienda puede crear categorías"""
+        shop_id = serializer.validated_data.get('shop').id
+        shop = get_object_or_404(Shop, id=shop_id)
+        
+        user = self.request.user
+        if not user.is_authenticated:
+            raise exceptions.PermissionDenied("Debes estar autenticado.")
+        
+        if shop.owner != user and not user.is_staff:
+            raise exceptions.PermissionDenied("Solo el propietario de la tienda puede crear categorías.")
+        
+        serializer.save()
+
+    def perform_update(self, serializer):
+        """Solo el owner de la tienda puede actualizar categorías"""
+        instance = self.get_object()
+        user = self.request.user
+        
+        if instance.shop.owner != user and not user.is_staff:
+            raise exceptions.PermissionDenied("Solo el propietario de la tienda puede editar categorías.")
+        
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """Solo el owner de la tienda puede eliminar categorías"""
+        user = self.request.user
+        
+        if instance.shop.owner != user and not user.is_staff:
+            raise exceptions.PermissionDenied("Solo el propietario de la tienda puede eliminar categorías.")
+        
+        # Verificar si hay productos asignados
+        if instance.products.exists():
+            raise exceptions.ValidationError(
+                "No se puede eliminar una categoría con productos asignados. "
+                "Primero reasigna o elimina los productos."
+            )
+        
+        instance.delete()
+
+    @action(detail=False, methods=['get'], url_path='by-shop/(?P<shop_id>[^/.]+)')
+    def by_shop(self, request, shop_id=None):
+        """
+        GET /api/categories/by-shop/{shop_id}/
+        Obtener todas las categorías de una tienda específica
+        """
+        categories = self.queryset.filter(shop_id=shop_id, active=True)
+        serializer = self.get_serializer(categories, many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def reorder(self, request):
+        """
+        POST /api/categories/reorder/
+        Body: { "categories": [{"id": 1, "order": 0}, {"id": 2, "order": 1}, ...] }
+        Reordenar categorías de una tienda
+        """
+        from .models import Category
+        
+        user = request.user
+        categories_data = request.data.get('categories', [])
+        
+        if not categories_data:
+            return Response(
+                {'error': 'Debes proporcionar un array de categorías con id y order.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar que todas las categorías pertenecen a tiendas del usuario
+        category_ids = [c['id'] for c in categories_data]
+        categories = Category.objects.filter(id__in=category_ids).select_related('shop')
+        
+        for category in categories:
+            if category.shop.owner != user and not user.is_staff:
+                raise exceptions.PermissionDenied(
+                    f"No tienes permiso para reordenar la categoría {category.name}."
+                )
+        
+        # Actualizar el orden
+        for cat_data in categories_data:
+            Category.objects.filter(id=cat_data['id']).update(order=cat_data['order'])
+        
+        return Response({'message': 'Categorías reordenadas exitosamente.'}, status=status.HTTP_200_OK)
+
+
+# ----- ProductImage ViewSet -----
+class ProductImageViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet para gestionar imágenes de productos.
+    - List/Create: GET/POST /api/product-images/
+    - Retrieve/Update/Delete: GET/PUT/PATCH/DELETE /api/product-images/{id}/
+    - Custom actions: set-primary/{id}/, reorder/
+    """
+    from .models import ProductImage
+    from .serializers import ProductImageSerializer
+    
+    queryset = ProductImage.objects.select_related('product', 'product__shop').all()
+    serializer_class = ProductImageSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        """Filtrar imágenes por product_id si se proporciona"""
+        queryset = self.queryset
+        
+        product_id = self.request.query_params.get('product')
+        if product_id:
+            queryset = queryset.filter(product_id=product_id)
+        
+        return queryset
+
+    def perform_create(self, serializer):
+        """Solo el owner del producto puede agregar imágenes"""
+        product_id = serializer.validated_data.get('product').id
+        product = get_object_or_404(ProductModel, id=product_id)
+        
+        user = self.request.user
+        if not user.is_authenticated:
+            raise exceptions.PermissionDenied("Debes estar autenticado.")
+        
+        if product.shop.owner != user and not user.is_staff:
+            raise exceptions.PermissionDenied("Solo el propietario del producto puede agregar imágenes.")
+        
+        serializer.save()
+
+    def perform_update(self, serializer):
+        """Solo el owner del producto puede actualizar imágenes"""
+        instance = self.get_object()
+        user = self.request.user
+        
+        if instance.product.shop.owner != user and not user.is_staff:
+            raise exceptions.PermissionDenied("Solo el propietario del producto puede editar imágenes.")
+        
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """Solo el owner del producto puede eliminar imágenes"""
+        user = self.request.user
+        
+        if instance.product.shop.owner != user and not user.is_staff:
+            raise exceptions.PermissionDenied("Solo el propietario del producto puede eliminar imágenes.")
+        
+        # Eliminar el archivo físico
+        if instance.image:
+            instance.image.delete(save=False)
+        
+        instance.delete()
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated], url_path='set-primary')
+    def set_primary(self, request, pk=None):
+        """
+        POST /api/product-images/{id}/set-primary/
+        Marcar esta imagen como principal del producto
+        """
+        image = self.get_object()
+        user = request.user
+        
+        # Verificar ownership
+        if image.product.shop.owner != user and not user.is_staff:
+            raise exceptions.PermissionDenied("No tienes permiso para modificar esta imagen.")
+        
+        # Marcar como primary (el save() del modelo se encarga de desmarcar las demás)
+        image.is_primary = True
+        image.save()
+        
+        serializer = self.get_serializer(image)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def reorder(self, request):
+        """
+        POST /api/product-images/reorder/
+        Body: { "images": [{"id": 1, "order": 0}, {"id": 2, "order": 1}, ...] }
+        Reordenar imágenes de un producto
+        """
+        from .models import ProductImage
+        
+        user = request.user
+        images_data = request.data.get('images', [])
+        
+        if not images_data:
+            return Response(
+                {'error': 'Debes proporcionar un array de imágenes con id y order.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar que todas las imágenes pertenecen a productos del usuario
+        image_ids = [img['id'] for img in images_data]
+        images = ProductImage.objects.filter(id__in=image_ids).select_related('product__shop')
+        
+        for image in images:
+            if image.product.shop.owner != user and not user.is_staff:
+                raise exceptions.PermissionDenied(
+                    f"No tienes permiso para reordenar imágenes del producto {image.product.name}."
+                )
+        
+        # Actualizar el orden
+        for img_data in images_data:
+            ProductImage.objects.filter(id=img_data['id']).update(order=img_data['order'])
+        
+        return Response({'message': 'Imágenes reordenadas exitosamente.'}, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated], url_path='bulk-upload')
+    def bulk_upload(self, request):
+        """
+        POST /api/product-images/bulk-upload/
+        Body: { "product": <product_id>, "images": [<file1>, <file2>, ...] }
+        Subir múltiples imágenes a la vez
+        """
+        from .models import ProductImage
+        
+        user = request.user
+        product_id = request.data.get('product')
+        images_files = request.FILES.getlist('images')
+        
+        if not product_id:
+            return Response({'error': 'Debes proporcionar el ID del producto.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not images_files:
+            return Response({'error': 'Debes proporcionar al menos una imagen.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Verificar ownership
+        product = get_object_or_404(ProductModel, id=product_id)
+        if product.shop.owner != user and not user.is_staff:
+            raise exceptions.PermissionDenied("No tienes permiso para agregar imágenes a este producto.")
+        
+        # Obtener el máximo order actual
+        max_order = ProductImage.objects.filter(product=product).aggregate(max_order=models.Max('order'))['max_order'] or -1
+        
+        # Crear las imágenes
+        created_images = []
+        for idx, img_file in enumerate(images_files):
+            product_image = ProductImage.objects.create(
+                product=product,
+                image=img_file,
+                order=max_order + idx + 1,
+                alt_text=f"{product.name} - Image {max_order + idx + 2}"
+            )
+            created_images.append(product_image)
+        
+        serializer = self.get_serializer(created_images, many=True)
+        return Response({
+            'message': f'{len(created_images)} imágenes subidas exitosamente.',
+            'images': serializer.data
+        }, status=status.HTTP_201_CREATED)

@@ -6,6 +6,7 @@ from django.conf import settings
 Shop = apps.get_model('shops', 'Shop')
 Product = apps.get_model('shops', 'Product')
 Category = apps.get_model('shops', 'Category') if apps.is_installed('apps.shops') else None
+ProductImage = apps.get_model('shops', 'ProductImage') if apps.is_installed('apps.shops') else None
 
 # Si por alguna razón Category no existe, definimos un fallback mínimo
 if Category is None:
@@ -14,11 +15,36 @@ if Category is None:
     Category = _DummyCategory
 
 
+class ProductImageSerializer(serializers.ModelSerializer):
+    """Serializer para imágenes de productos"""
+    image_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ProductImage
+        fields = ('id', 'product', 'image', 'image_url', 'alt_text', 'is_primary', 'order', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
+    
+    def get_image_url(self, obj):
+        """Devuelve URL completa de la imagen"""
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+
+
 class CategorySerializer(serializers.ModelSerializer):
+    shop_name = serializers.CharField(source='shop.name', read_only=True)
+    product_count = serializers.IntegerField(read_only=True)
+
     class Meta:
         model = Category
-        # Si Category es dummy, evitamos errores
-        fields = ('id', 'name') if hasattr(Category, '_meta') else ()
+        fields = (
+            'id', 'shop', 'shop_name', 'name', 'slug', 'description',
+            'active', 'order', 'product_count', 'created_at', 'updated_at'
+        )
+        read_only_fields = ('id', 'slug', 'created_at', 'updated_at', 'shop_name', 'product_count')
 
 
 class ShopSerializer(serializers.ModelSerializer):
@@ -59,14 +85,40 @@ class ProductSerializer(serializers.ModelSerializer):
     # shop relación como PK y detalle anidado para respuestas
     shop = serializers.PrimaryKeyRelatedField(queryset=Shop.objects.all())
     shop_detail = ShopSerializer(source='shop', read_only=True)
+    
+    # Imágenes del producto
+    images = ProductImageSerializer(many=True, read_only=True)
+    primary_image_url = serializers.SerializerMethodField()
+    images_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = (
             'id', 'shop', 'shop_detail', 'category', 'name', 'sku', 'description',
-            'image', 'price', 'stock', 'active', 'created_at'
+            'image', 'price', 'stock', 'active', 'created_at',
+            'images', 'primary_image_url', 'images_count'
         )
-        read_only_fields = ('id', 'created_at',)
+        read_only_fields = ('id', 'created_at', 'images', 'primary_image_url', 'images_count')
+    
+    def get_primary_image_url(self, obj):
+        """Devuelve URL de la imagen principal"""
+        primary_img = obj.primary_image
+        if primary_img and primary_img.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(primary_img.image.url)
+            return primary_img.image.url
+        # Fallback a la imagen legacy si existe
+        if obj.image:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None
+    
+    def get_images_count(self, obj):
+        """Devuelve el número de imágenes del producto"""
+        return obj.images.count()
 
     def validate_price(self, value):
         if value is None:
