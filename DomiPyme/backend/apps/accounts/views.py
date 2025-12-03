@@ -16,6 +16,11 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.utils import timezone
+
+from apps.shops.models import Shop, Product as ShopProduct
+from apps.orders.models import Order
+from apps.payments.models import Transaction
 
 from .serializers import (
     RegisterSerializer,
@@ -84,9 +89,14 @@ class MeView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_object(self):
-        return self.request.user
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
 
+    def put(self, request):
+        serializer = UserSerializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 class PasswordResetRequestView(APIView):
     """
@@ -198,3 +208,47 @@ class PasswordResetConfirmView(APIView):
 
         logger.info("Password updated successfully for user id=%s", user.id)
         return Response({"detail": "Contraseña cambiada correctamente."}, status=status.HTTP_200_OK)
+
+
+class AdminStatsView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        now = timezone.now()
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        last_7_days = now - timezone.timedelta(days=7)
+
+        users_total = User.objects.count()
+        users_active = User.objects.filter(is_active=True).count()
+        merchants_total = User.objects.filter(**{"is_merchant": True}).count() if hasattr(User, 'is_merchant') else 0
+
+        shops_total = Shop.objects.count()
+        shops_active = Shop.objects.filter(active=True).count()
+
+        products_total = ShopProduct.objects.count()
+        products_active = ShopProduct.objects.filter(active=True).count()
+
+        orders_total = Order.objects.count()
+        orders_paid = Order.objects.filter(status__in=["paid", "preparing", "dispatched", "delivered"]).count()
+        orders_today = Order.objects.filter(created_at__gte=start_of_day).count()
+        orders_last7 = Order.objects.filter(created_at__gte=last_7_days).count()
+
+        tx_total = Transaction.objects.count()
+        tx_approved = Transaction.objects.filter(status__iexact='approved').count()
+        tx_today = Transaction.objects.filter(created_at__gte=start_of_day).count()
+
+        # Revenue approximation based on approved transactions
+        from django.db.models import Sum
+        revenue_total = Transaction.objects.filter(status__iexact='approved').aggregate(s=Sum('amount')).get('s') or 0
+        revenue_today = Transaction.objects.filter(status__iexact='approved', created_at__gte=start_of_day).aggregate(s=Sum('amount')).get('s') or 0
+
+        data = {
+            "users": {"total": users_total, "active": users_active, "merchants": merchants_total},
+            "shops": {"total": shops_total, "active": shops_active},
+            "products": {"total": products_total, "active": products_active},
+            "orders": {"total": orders_total, "paid_or_later": orders_paid, "today": orders_today, "last7": orders_last7},
+            "transactions": {"total": tx_total, "approved": tx_approved, "today": tx_today},
+            "revenue": {"total": str(revenue_total), "today": str(revenue_today)},
+            "generated_at": now.isoformat(),
+        }
+        return Response(data, status=status.HTTP_200_OK)

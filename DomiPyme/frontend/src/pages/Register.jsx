@@ -17,6 +17,7 @@ export default function Register() {
     phone: '',
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [pwdStrength, setPwdStrength] = useState(0);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -47,6 +48,17 @@ export default function Register() {
     setFieldErrors((prev) => ({ ...prev, [name]: undefined })); // borrar error de campo específico
     setError(null);
     setForm((prev) => ({ ...prev, [name]: value }));
+
+    if (name === 'password') {
+      const v = value || '';
+      let score = 0;
+      if (v.length >= 8) score += 1;
+      if (/[A-Z]/.test(v)) score += 1;
+      if (/[a-z]/.test(v)) score += 1;
+      if (/[0-9]/.test(v)) score += 1;
+      if (/[^A-Za-z0-9]/.test(v)) score += 1;
+      setPwdStrength(score);
+    }
   };
 
   const validate = () => {
@@ -263,6 +275,12 @@ export default function Register() {
                   minLength={8}
                   required
                 />
+                <div style={{ marginTop: 6 }}>
+                  <div style={{ height: 8, borderRadius: 6, background: '#eef2f7', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${(pwdStrength/5)*100}%`, background: pwdStrength>=4? '#10b981' : (pwdStrength>=3? '#f59e0b':'#ef4444') }} />
+                  </div>
+                  <small style={styles.hint}>{pwdStrength>=4? 'Fuerte' : pwdStrength>=3? 'Media' : 'Débil'}</small>
+                </div>
                 {fieldErrors.password && <small style={styles.errField}>{fieldErrors.password}</small>}
               </div>
 

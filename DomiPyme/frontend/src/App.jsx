@@ -19,9 +19,11 @@ import OrderSuccess from './pages/OrderSuccess';
 import ProductDetail from './pages/ProductDetail';
 import AdminPanel from './pages/AdminPanel';
 import MerchantPanel from './pages/MerchantPanel';
-import CustomerDashboard from './pages/CustomerDashboard';
 import NotFound from './pages/NotFound';
-import MyOrders from './pages/MyOrders';
+import Profile from './pages/Profile';
+import OrderHistory from './pages/OrderHistory';
+import OrderDetail from './pages/OrderDetail';
+import PlatformGuide from './pages/PlatformGuide';
 
 // Merchant subpages
 import MerchantCreateShop from './pages/merchant/CreateShop';
@@ -65,6 +67,7 @@ export default function App() {
 
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/about" element={<PlatformGuide />} />
 
         {/* Public catalog and shop pages */}
         <Route path="/catalog" element={<Catalog />} />
@@ -76,23 +79,20 @@ export default function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<RequireAuth><Checkout /></RequireAuth>} />
         <Route path="/order/success" element={<OrderSuccess />} />
+        
+        {/* Orders */}
+        <Route path="/orders" element={<RequireAuth><OrderHistory /></RequireAuth>} />
+        <Route path="/orders/:id" element={<RequireAuth><OrderDetail /></RequireAuth>} />
+        
+        {/* Profile */}
+        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
 
         {/* Dashboards & panels */}
         <Route
           path="/dashboard"
           element={
-            <PrivateRoute role="customer">
-              <CustomerDashboard />
-            </PrivateRoute>
-          }
-        />
-
-        {/* Customer orders */}
-        <Route
-          path="/orders"
-          element={
-            <PrivateRoute role="customer">
-              <MyOrders />
+            <PrivateRoute>
+              <Dashboard />
             </PrivateRoute>
           }
         />
@@ -169,7 +169,7 @@ export default function App() {
           }
         />
 
-        {/* Fallback */}
+        {/* Fallback - 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </>

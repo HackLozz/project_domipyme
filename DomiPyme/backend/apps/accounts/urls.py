@@ -10,6 +10,7 @@ from .views import (
     PasswordResetRequestView,
     PasswordResetConfirmView,
     AdminUserViewSet,
+    AdminStatsView,
 )
 
 app_name = "accounts"
@@ -22,7 +23,8 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('token/', ObtainTokenPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('me/', MeView.as_view(), name='me'),
+    path('auth/me/', MeView.as_view(), name='auth-me'),
+    path('admin/stats/', AdminStatsView.as_view(), name='admin-stats'),
     path('password-reset-request/', PasswordResetRequestView.as_view(), name='password_reset_request'),
     path('password-reset-confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
 ]

@@ -10,6 +10,7 @@ export default function Login() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   const isMountedRef = useRef(true);
   const nav = useNavigate();
@@ -128,7 +129,7 @@ export default function Login() {
             <input
               id="password"
               name="password"
-              type="password"
+              type={showPw ? 'text' : 'password'}
               value={password}
               onChange={e => setPassword(e.target.value)}
               style={styles.input}
@@ -139,6 +140,10 @@ export default function Login() {
               disabled={loading}
               aria-required="true"
             />
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+              <input type="checkbox" checked={showPw} onChange={() => setShowPw(v=>!v)} disabled={loading} />
+              Mostrar contraseña
+            </label>
 
             <div style={styles.row}>
               <label style={styles.remember}>
@@ -160,7 +165,7 @@ export default function Login() {
               type="submit"
               className="btn-primary"
               style={{ ...styles.button, opacity: loading ? 0.85 : 1 }}
-              disabled={loading}
+              disabled={loading || !email || password.length < 6}
               aria-busy={loading}
             >
               {loading ? (

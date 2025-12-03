@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../components/Api";
-import '../components/ui/Design.css';
 
 export default function Home() {
   const [shops, setShops] = useState([]);
@@ -55,9 +54,9 @@ export default function Home() {
         ]);
 
         if (!mounted) return;
-        <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
-          <Link to="/catalog" className="btn btn-primary">Explorar Catálogo</Link>
-          <Link to="/shop/create" className="btn">Crear tu tienda</Link>
+
+        const shopsData = normalizeSettled(sSettled);
+        const productsData = normalizeSettled(pSettled);
 
         setShops(shopsData);
         setProducts(productsData);
@@ -115,11 +114,15 @@ export default function Home() {
   return (
     <div style={styles.container}>
       <div style={styles.hero}>
-        <h1 style={styles.title}>DomiPyme</h1>
-        <p style={styles.subtitle}>Apoya negocios locales — descubre tiendas y productos cerca de ti.</p>
-        <div style={{ marginTop: 12 }}>
-          <Link to="/catalog" style={styles.primaryBtn}>Explorar tiendas</Link>
+        <div>
+          <h1 style={styles.title}>DomiPyme</h1>
+          <p style={styles.subtitle}>Apoya negocios locales — descubre tiendas y productos cerca de ti.</p>
+          <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
+            <Link to="/catalog" style={styles.primaryBtn}>Explorar tiendas</Link>
+            <Link to="/about" style={styles.secondaryBtn}>Cómo funciona</Link>
+          </div>
         </div>
+        <div style={{ width: 220 }}>{heroMiniSVG}</div>
       </div>
 
       <section style={{ maxWidth: 1100, margin: "18px auto" }}>
@@ -164,6 +167,51 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {/* Cómo funciona */}
+      <section style={{ maxWidth: 1100, margin: '22px auto' }}>
+        <h3>Cómo funciona</h3>
+        <div style={styles.stepsGrid}>
+          <div style={styles.stepCard}>
+            <div style={styles.stepIcon}>🔎</div>
+            <div>
+              <div style={styles.stepTitle}>Explora</div>
+              <div style={styles.stepText}>Encuentra tiendas y productos cerca de ti.</div>
+            </div>
+          </div>
+          <div style={styles.stepCard}>
+            <div style={styles.stepIcon}>🧺</div>
+            <div>
+              <div style={styles.stepTitle}>Agrega al carrito</div>
+              <div style={styles.stepText}>Ajusta cantidades y compara opciones.</div>
+            </div>
+          </div>
+          <div style={styles.stepCard}>
+            <div style={styles.stepIcon}>💳</div>
+            <div>
+              <div style={styles.stepTitle}>Checkout</div>
+              <div style={styles.stepText}>Completa tu compra de forma segura.</div>
+            </div>
+          </div>
+          <div style={styles.stepCard}>
+            <div style={styles.stepIcon}>📦</div>
+            <div>
+              <div style={styles.stepTitle}>Recibe tu pedido</div>
+              <div style={styles.stepText}>Sigue el estado y disfruta tu compra.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Comerciantes */}
+      <section style={styles.merchantCta}>
+        <div>
+          <h3 style={{ margin: 0 }}>¿Tienes un negocio?</h3>
+          <p style={{ margin: '6px 0 12px', color: '#e5e7eb' }}>Crea tu tienda, publica productos y empieza a vender hoy.</p>
+          <Link to="/register" style={styles.ctaBtn}>Crear cuenta</Link>
+        </div>
+        <div>{shopMiniSVG}</div>
+      </section>
     </div>
   );
 }
@@ -176,10 +224,11 @@ const placeholderSVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 /* estilos locales */
 const styles = {
   container: { padding: 20, fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial' },
-  hero: { maxWidth: 1100, margin: '6px auto 18px', padding: 18, borderRadius: 12, background: '#fff', boxShadow: '0 6px 18px rgba(2,6,23,0.04)' },
+  hero: { maxWidth: 1100, margin: '6px auto 18px', padding: 18, borderRadius: 12, background: '#fff', boxShadow: '0 6px 18px rgba(2,6,23,0.04)', display: 'grid', gridTemplateColumns: '1fr 220px', gap: 16, alignItems: 'center' },
   title: { margin: 0, fontSize: 32 },
   subtitle: { marginTop: 6, color: '#6b7280' },
   primaryBtn: { marginTop: 8, padding: '8px 12px', borderRadius: 8, background: '#111827', color: '#fff', textDecoration: 'none', fontWeight: 700 },
+  secondaryBtn: { marginTop: 8, padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(17,24,39,0.12)', color: '#111827', textDecoration: 'none', fontWeight: 700 },
 
   skelCard: { width: 220, height: 100, background: 'linear-gradient(90deg,#f3f4f6 0%, #efefef 50%, #f3f4f6 100%)', borderRadius: 8 },
   productSkel: { height: 220, background: 'linear-gradient(90deg,#f3f4f6 0%, #efefef 50%, #f3f4f6 100%)', borderRadius: 10 },
@@ -191,3 +240,31 @@ const styles = {
 
   errBox: { padding: 12, background: '#fff1f2', color: '#b91c1c', borderRadius: 8 }
 };
+
+const heroMiniSVG = (
+  <svg width="220" height="120" viewBox="0 0 220 120" xmlns="http://www.w3.org/2000/svg">
+    <rect width="220" height="120" rx="12" fill="#f3f4f6" />
+    <circle cx="48" cy="48" r="18" fill="#111827"/>
+    <rect x="80" y="36" width="110" height="10" rx="5" fill="#d1d5db"/>
+    <rect x="80" y="52" width="90" height="10" rx="5" fill="#e5e7eb"/>
+    <rect x="20" y="84" width="180" height="10" rx="5" fill="#e5e7eb"/>
+  </svg>
+);
+
+const shopMiniSVG = (
+  <svg width="180" height="100" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+    <rect x="20" y="40" width="160" height="60" rx="8" fill="#f3f4f6" stroke="#e5e7eb"/>
+    <rect x="30" y="20" width="140" height="30" rx="6" fill="#fff" stroke="#e5e7eb"/>
+    <rect x="30" y="70" width="40" height="30" rx="4" fill="#e5e7eb" />
+    <rect x="80" y="70" width="40" height="30" rx="4" fill="#e5e7eb" />
+    <rect x="130" y="70" width="40" height="30" rx="4" fill="#e5e7eb" />
+  </svg>
+);
+
+styles.stepsGrid = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 12 };
+styles.stepCard = { background: '#fff', borderRadius: 12, padding: 12, border: '1px solid rgba(15,23,42,0.06)', display: 'flex', gap: 10, alignItems: 'center', boxShadow: '0 6px 18px rgba(2,6,23,0.04)' };
+styles.stepIcon = { fontSize: 24 };
+styles.stepTitle = { fontWeight: 800 };
+styles.stepText = { color: '#6b7280', fontSize: 13 };
+styles.merchantCta = { maxWidth: 1100, margin: '20px auto', background: '#111827', color: '#fff', padding: 18, borderRadius: 12, display: 'grid', gridTemplateColumns: '1fr 180px', gap: 16, alignItems: 'center' };
+styles.ctaBtn = { padding: '8px 12px', borderRadius: 8, background: '#fff', color: '#111827', textDecoration: 'none', fontWeight: 800 };
