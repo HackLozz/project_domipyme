@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthProvider';
 import ErrorBoundary from './components/ErrorBoundary';
+import './animations.css';
 
 const container = document.getElementById('root');
 

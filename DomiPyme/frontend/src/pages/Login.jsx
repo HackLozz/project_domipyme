@@ -2,6 +2,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
+import { showToast } from '../components/Toast';
+import LoadingSpinner from '../components/LoadingSpinner';
+import Button from '../components/Button';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -72,6 +75,7 @@ export default function Login() {
 
       if (isMountedRef.current) {
         setError(msg);
+        showToast(msg, 'error');
         setLoading(false);
       }
     } finally {

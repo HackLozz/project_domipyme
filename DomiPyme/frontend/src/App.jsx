@@ -25,6 +25,8 @@ import OrderHistory from './pages/OrderHistory';
 import OrderDetail from './pages/OrderDetail';
 import PlatformGuide from './pages/PlatformGuide';
 import NotificationsPage from './pages/NotificationsPage';
+import UIShowcase from './pages/UIShowcase';
+import { ToastContainer } from './components/Toast';
 
 // Merchant subpages
 import MerchantCreateShop from './pages/merchant/CreateShop';
@@ -60,6 +62,7 @@ export default function App() {
   return (
     <>
       <Navbar />
+      <ToastContainer />
       <Routes>
         <Route path="/" element={<Home />} />
 
@@ -69,6 +72,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/about" element={<PlatformGuide />} />
+        <Route path="/ui-showcase" element={<UIShowcase />} />
 
         {/* Public catalog and shop pages */}
         <Route path="/catalog" element={<Catalog />} />

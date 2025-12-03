@@ -4,6 +4,10 @@ import api from "../components/Api";
 import { useAuth } from "../context/AuthProvider";
 import { Navigate, Link } from "react-router-dom";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
+import { showToast } from "../components/Toast";
+import ConfirmDialog from "../components/ConfirmDialog";
+import LoadingSpinner from "../components/LoadingSpinner";
+import Button from "../components/Button";
 
 const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(Number(n || 0));
 
@@ -124,9 +128,10 @@ export default function MerchantPanel() {
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
       setLowStockProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
       setEditingStock(null);
+      showToast('Stock actualizado correctamente', 'success');
     } catch (e) {
       console.error('Error updating stock:', e);
-      alert('No se pudo actualizar el stock. Inténtalo de nuevo.');
+      showToast('No se pudo actualizar el stock. Inténtalo de nuevo.', 'error');
     }
   };
 
@@ -136,9 +141,10 @@ export default function MerchantPanel() {
       // Actualizar localmente
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, active: resp.data.active } : p));
       setLowStockProducts(prev => prev.map(p => p.id === productId ? { ...p, active: resp.data.active } : p));
+      showToast(`Producto ${resp.data.active ? 'activado' : 'desactivado'}`, 'success');
     } catch (e) {
       console.error('Error toggling active:', e);
-      alert('No se pudo cambiar el estado. Inténtalo de nuevo.');
+      showToast('No se pudo cambiar el estado. Inténtalo de nuevo.', 'error');
     }
   };
 

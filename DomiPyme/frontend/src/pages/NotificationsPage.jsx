@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../components/Api';
 import { useAuth } from '../context/AuthProvider';
+import { showToast } from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
+import LoadingSpinner from '../components/LoadingSpinner';
+import Button from '../components/Button';
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
@@ -39,6 +43,7 @@ const NotificationsPage = () => {
       );
     } catch (error) {
       console.error('Error marking as read:', error);
+      showToast('Error al marcar como leída', 'error');
     }
   };
 
@@ -46,19 +51,32 @@ const NotificationsPage = () => {
     try {
       await api.patch('/auth/notifications/mark-all-as-read/');
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      showToast('Todas las notificaciones marcadas como leídas', 'success');
     } catch (error) {
       console.error('Error marking all as read:', error);
+      showToast('Error al marcar todas como leídas', 'error');
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('¿Estás seguro de eliminar esta notificación?')) return;
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
+  const [deleting, setDeleting] = useState(false);
 
+  const handleDeleteClick = (id) => {
+    setDeleteConfirm({ open: true, id });
+  };
+
+  const handleDeleteConfirm = async () => {
+    setDeleting(true);
     try {
-      await api.delete(`/auth/notifications/${id}/`);
-      setNotifications(prev => prev.filter(n => n.id !== id));
+      await api.delete(`/auth/notifications/${deleteConfirm.id}/`);
+      setNotifications(prev => prev.filter(n => n.id !== deleteConfirm.id));
+      showToast('Notificación eliminada', 'success');
+      setDeleteConfirm({ open: false, id: null });
     } catch (error) {
       console.error('Error deleting notification:', error);
+      showToast('Error al eliminar notificación', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -121,19 +139,31 @@ const NotificationsPage = () => {
   if (loading) {
     return (
       <div style={styles.container}>
-        <div style={styles.loading}>Cargando notificaciones...</div>
+        <LoadingSpinner fullScreen={true} />
       </div>
     );
   }
 
   return (
     <div style={styles.container}>
+      <ConfirmDialog
+        isOpen={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, id: null })}
+        onConfirm={handleDeleteConfirm}
+        title="Eliminar notificación"
+        message="¿Estás seguro de que deseas eliminar esta notificación? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        variant="danger"
+        loading={deleting}
+      />
+
       <div style={styles.header}>
         <h1 style={styles.title}>Notificaciones</h1>
         {unreadCount > 0 && (
-          <button style={styles.markAllButton} onClick={handleMarkAllAsRead}>
+          <Button variant="primary" size="small" onClick={handleMarkAllAsRead}>
             Marcar todas como leídas ({unreadCount})
-          </button>
+          </Button>
         )}
       </div>
 
@@ -213,7 +243,7 @@ const NotificationsPage = () => {
                 )}
                 <button
                   style={{ ...styles.actionButton, ...styles.deleteButton }}
-                  onClick={() => handleDelete(notification.id)}
+                  onClick={() => handleDeleteClick(notification.id)}
                   title="Eliminar"
                 >
                   🗑️
