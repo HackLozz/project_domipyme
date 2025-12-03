@@ -11,6 +11,11 @@ export default function MerchantPanel() {
   const [shop, setShop] = useState(null);
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [ordersNext, setOrdersNext] = useState(null);
+  const [ordersPrev, setOrdersPrev] = useState(null);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [productsPage, setProductsPage] = useState(1);
+  const pageSize = 12;
   const [orderStatusFilter, setOrderStatusFilter] = useState('all'); // all | pending | approved | delivered
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
@@ -29,8 +34,8 @@ export default function MerchantPanel() {
       try {
         const [shopRes, productsRes, ordersRes] = await Promise.allSettled([
           api.get("shops/my/"),
-          api.get("products/my/"),
-          api.get("orders/merchant/my/")
+          api.get(`products/my/?limit=${pageSize}&offset=${(productsPage-1)*pageSize}`),
+          api.get(`orders/merchant/my/?limit=${pageSize}&offset=${(ordersPage-1)*pageSize}`)
         ]);
 
         if (shopRes.status === 'fulfilled') setShop(shopRes.value.data);
@@ -39,9 +44,11 @@ export default function MerchantPanel() {
           setProducts(Array.isArray(data) ? data : (data.results || []));
         }
         if (ordersRes.status === 'fulfilled') {
-          const data = ordersRes.value.data;
-          setOrders(Array.isArray(data) ? data : (data.results || []));
+          const data = ordersRes.value.data || {};
           const list = Array.isArray(data) ? data : (data.results || []);
+          setOrders(list);
+          setOrdersNext(data.next || null);
+          setOrdersPrev(data.previous || null);
           const approvedCount = list.filter(o => o.payment_confirmed).length;
           const lastOrderDate = list.length > 0 ? (list[0].created_at || null) : null;
           setMetrics({ approvedCount, lastOrderDate });
@@ -54,7 +61,7 @@ export default function MerchantPanel() {
     };
 
     load();
-  }, [user]);
+  }, [user, ordersPage, productsPage]);
 
   if (!user || user.role !== "merchant") return <Navigate to="/" />;
 
@@ -66,8 +73,21 @@ export default function MerchantPanel() {
     );
   }
 
+  const [stats, setStats] = useState(null);
+  useEffect(() => {
+    let mounted = true;
+    const loadStats = async () => {
+      try {
+        const resp = await api.get('orders/merchant/stats/');
+        if (mounted) setStats(resp.data);
+      } catch (e) {}
+    };
+    if (user && user.role === 'merchant') loadStats();
+    return () => { mounted = false; };
+  }, [user]);
+
   const totalRevenue = orders.filter(o => o.payment_confirmed).reduce((sum, o) => sum + Number(o.total || 0), 0);
-  const pendingOrders = orders.filter(o => o.status === 'pending' || !o.payment_confirmed).length;
+  const pendingOrders = (stats?.pending ?? orders.filter(o => o.status === 'pending' || !o.payment_confirmed).length);
 
   const filteredOrders = orders.filter(o => {
     if (orderStatusFilter === 'all') return true;
@@ -127,12 +147,12 @@ export default function MerchantPanel() {
 
             <div style={styles.statCard}>
               <div style={styles.statIcon}>✓</div>
-              <div style={styles.statValue}>{orders.length}</div>
+              <div style={styles.statValue}>{stats?.total ?? orders.length}</div>
               <div style={styles.statLabel}>Total pedidos</div>
             </div>
             <div style={styles.statCard}>
               <div style={styles.statIcon}>🧾</div>
-              <div style={styles.statValue}>{metrics.approvedCount}</div>
+              <div style={styles.statValue}>{stats?.approved ?? metrics.approvedCount}</div>
               <div style={styles.statLabel}>Pagos aprobados</div>
             </div>
           </div>
@@ -198,6 +218,10 @@ export default function MerchantPanel() {
                     ))}
                   </div>
                 )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                  <button disabled={productsPage<=1} onClick={()=>setProductsPage(p=>Math.max(1,p-1))} style={styles.btnSmall}>Anterior</button>
+                  <button onClick={()=>setProductsPage(p=>p+1)} style={styles.btnSmall}>Siguiente</button>
+                </div>
               </div>
 
               <div style={styles.card}>
@@ -234,7 +258,7 @@ export default function MerchantPanel() {
                             try {
                               await api.put(`orders/${o.id}/status/`, { status: next });
                               // refresh orders list
-                              const resp = await api.get('orders/merchant/my/');
+                              const resp = await api.get(`orders/merchant/my/?limit=${pageSize}&offset=${(ordersPage-1)*pageSize}`);
                               const list = Array.isArray(resp.data) ? resp.data : (resp.data.results || []);
                               setOrders(list);
                             } catch (err) { console.error('Status update failed', err); }
@@ -259,6 +283,10 @@ export default function MerchantPanel() {
                     ))}
                   </div>
                 )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                  <button disabled={!ordersPrev} onClick={()=>setOrdersPage(p=>Math.max(1,p-1))} style={styles.btnSmall}>Anterior</button>
+                  <button disabled={!ordersNext} onClick={()=>setOrdersPage(p=>p+1)} style={styles.btnSmall}>Siguiente</button>
+                </div>
               </div>
             </div>
 

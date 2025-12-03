@@ -134,6 +134,31 @@ class MerchantMyOrdersView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class MerchantOrdersStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if not (getattr(user, 'is_staff', False) or getattr(user, 'is_merchant', False)):
+            return Response({"detail": "No autorizado"}, status=status.HTTP_403_FORBIDDEN)
+
+        shop_ids = list(Shop.objects.filter(owner=user).values_list('id', flat=True))
+        qs = Order.objects.filter(shop_id__in=shop_ids).order_by('-created_at')
+        total = qs.count()
+        pending = qs.filter(status='pending').count()
+        approved = qs.filter(payment_confirmed=True).count()
+        delivered = qs.filter(status='delivered').count()
+        last_order_date = qs.first().created_at.isoformat() if qs.exists() else None
+
+        return Response({
+            'total': total,
+            'pending': pending,
+            'approved': approved,
+            'delivered': delivered,
+            'last_order_date': last_order_date,
+        }, status=status.HTTP_200_OK)
+
+
 class OrderStatusUpdateView(APIView):
     """
     PUT /api/orders/<id>/status/ {"status": "preparing"}

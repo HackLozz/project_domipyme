@@ -56,7 +56,8 @@ export default function Navbar() {
 
   return (
     <nav style={styles.nav}>
-      <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <img src="/assets/logo.svg" alt="DomiPyme" style={{ width: 28, height: 28, borderRadius: 6 }} />
         <Link to="/" style={styles.brand}>DomiPyme</Link>
       </div>
 

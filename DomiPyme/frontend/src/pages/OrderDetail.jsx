@@ -90,6 +90,15 @@ export default function OrderDetail() {
   const date = order.created_at ? new Date(order.created_at).toLocaleDateString('es-CO', { 
     year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
   }) : 'N/A';
+  const timeline = [
+    { key: 'pending', label: 'Pendiente' },
+    { key: 'paid', label: 'Pagado' },
+    { key: 'preparing', label: 'Preparando' },
+    { key: 'dispatched', label: 'Despachado' },
+    { key: 'delivered', label: 'Entregado' },
+    { key: 'cancelled', label: 'Cancelado' },
+  ];
+  const currentIndex = timeline.findIndex(t => t.key === order.status);
 
   return (
     <div style={styles.container} className={mounted ? 'page-enter' : ''}>
@@ -140,6 +149,24 @@ export default function OrderDetail() {
                 <span>Total</span>
                 <span>{fmt(order.total)}</span>
               </div>
+            </div>
+          </div>
+
+          <div style={styles.card}>
+            <h3 style={styles.cardTitle}>Estado del pedido</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${timeline.length}, 1fr)`, gap: 8 }}>
+              {timeline.map((step, idx) => {
+                const reached = idx <= currentIndex && currentIndex !== -1;
+                return (
+                  <div key={step.key} style={{ textAlign: 'center' }}>
+                    <div style={{ height: 10, borderRadius: 999, background: reached ? '#10b981' : '#e5e7eb' }} />
+                    <div style={{ fontSize: 12, marginTop: 6, color: reached ? '#065f46' : '#6b7280', fontWeight: reached ? 800 : 600 }}>{step.label}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop: 10, fontSize: 13, color: '#6b7280' }}>
+              Estado actual: <strong style={{ color: '#111827' }}>{timeline[currentIndex]?.label || order.status}</strong>
             </div>
           </div>
         </div>

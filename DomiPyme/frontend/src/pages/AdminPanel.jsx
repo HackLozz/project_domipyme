@@ -12,8 +12,18 @@ export default function AdminPanel() {
 
   const [stats, setStats] = useState(null);
   const [shops, setShops] = useState([]);
+  const [shopsNext, setShopsNext] = useState(null);
+  const [shopsPrev, setShopsPrev] = useState(null);
   const [users, setUsers] = useState([]);
+  const [usersNext, setUsersNext] = useState(null);
+  const [usersPrev, setUsersPrev] = useState(null);
   const [products, setProducts] = useState([]);
+  const [productsNext, setProductsNext] = useState(null);
+  const [productsPrev, setProductsPrev] = useState(null);
+  const [shopsPage, setShopsPage] = useState(1);
+  const [usersPage, setUsersPage] = useState(1);
+  const [productsPage, setProductsPage] = useState(1);
+  const pageSize = 12;
 
   const [searchShop, setSearchShop] = useState('');
   const [searchUser, setSearchUser] = useState('');
@@ -31,14 +41,20 @@ export default function AdminPanel() {
       try {
         const [st, s, u, p] = await Promise.all([
           api.get('auth/admin/stats/'),
-          api.get('shops/'),
-          api.get('auth/users/'),
-          api.get('products/'),
+          api.get(`shops/?limit=${pageSize}&offset=${(shopsPage-1)*pageSize}`),
+          api.get(`auth/users/?limit=${pageSize}&offset=${(usersPage-1)*pageSize}`),
+          api.get(`products/?limit=${pageSize}&offset=${(productsPage-1)*pageSize}`),
         ]);
         setStats(st.data || null);
-        setShops(Array.isArray(s.data?.results) ? s.data.results : (s.data || []));
-        setUsers(Array.isArray(u.data?.results) ? u.data.results : (u.data || []));
-        setProducts(Array.isArray(p.data?.results) ? p.data.results : (p.data || []));
+        const sData = s.data || {};
+        const uData = u.data || {};
+        const pData = p.data || {};
+        setShops(Array.isArray(sData.results) ? sData.results : (sData || []));
+        setUsers(Array.isArray(uData.results) ? uData.results : (uData || []));
+        setProducts(Array.isArray(pData.results) ? pData.results : (pData || []));
+        setShopsNext(sData.next || null); setShopsPrev(sData.previous || null);
+        setUsersNext(uData.next || null); setUsersPrev(uData.previous || null);
+        setProductsNext(pData.next || null); setProductsPrev(pData.previous || null);
       } catch (err) {
         console.error('Admin load error', err);
         setError('No se pudo cargar datos administrativos');
@@ -47,7 +63,7 @@ export default function AdminPanel() {
       }
     };
     load();
-  }, []);
+  }, [shopsPage, usersPage, productsPage]);
 
   if (loading) return <div style={mini.loadingWrap}>Cargando...</div>;
   if (!user || !user.is_staff) return <Navigate to="/" replace />;
@@ -189,6 +205,10 @@ export default function AdminPanel() {
                 </tbody>
               </table>
             )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+              <button disabled={!shopsPrev} onClick={()=>setShopsPage(p=>Math.max(1,p-1))} style={styles.btnSmall}>Anterior</button>
+              <button disabled={!shopsNext} onClick={()=>setShopsPage(p=>p+1)} style={styles.btnSmall}>Siguiente</button>
+            </div>
           </div>
         </section>
 
@@ -215,6 +235,10 @@ export default function AdminPanel() {
                 ))}
               </ul>
             )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+              <button disabled={!usersPrev} onClick={()=>setUsersPage(p=>Math.max(1,p-1))} style={styles.btnSmall}>Anterior</button>
+              <button disabled={!usersNext} onClick={()=>setUsersPage(p=>p+1)} style={styles.btnSmall}>Siguiente</button>
+            </div>
           </div>
 
           <div style={{ ...styles.tableCard, marginTop: 12 }} className="card">
@@ -239,6 +263,10 @@ export default function AdminPanel() {
                 ))}
               </ul>
             )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+              <button disabled={!productsPrev} onClick={()=>setProductsPage(p=>Math.max(1,p-1))} style={styles.btnSmall}>Anterior</button>
+              <button disabled={!productsNext} onClick={()=>setProductsPage(p=>p+1)} style={styles.btnSmall}>Siguiente</button>
+            </div>
           </div>
         </aside>
       </main>
