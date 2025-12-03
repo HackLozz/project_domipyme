@@ -1,37 +1,15 @@
 // src/components/Navbar.jsx
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 import NotificationBell from "./NotificationBell";
+import CartIcon from "./CartIcon";
 
 export default function Navbar() {
   const nav = useNavigate();
   const { user, logout } = useAuth();
-  const [cartCount, setCartCount] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
-
-  // handler memoizado para poder removerlo correctamente
-  const handleCartUpdate = useCallback(() => {
-    try {
-      const updated = JSON.parse(localStorage.getItem("dp_cart") || "[]");
-      setCartCount(Array.isArray(updated) ? updated.length : 0);
-    } catch {
-      setCartCount(0);
-    }
-  }, []);
-
-  useEffect(() => {
-    // inicializar
-    handleCartUpdate();
-
-    // listener global para actualizar carrito
-    window.addEventListener("dp_cart_updated", handleCartUpdate);
-
-    return () => {
-      window.removeEventListener("dp_cart_updated", handleCartUpdate);
-    };
-  }, [handleCartUpdate]);
 
   // cerrar dropdown en click fuera
   useEffect(() => {
@@ -76,11 +54,7 @@ export default function Navbar() {
 
         {user && (
           <>
-            <Link to="/cart" style={styles.link}>
-              Carrito
-              {cartCount > 0 && (<span style={styles.badge}>{cartCount}</span>)}
-            </Link>
-            <Link to="/checkout" style={styles.link}>Checkout</Link>
+            <CartIcon />
 
             {user.role === 'admin' && <Link to="/admin" style={styles.link}>Panel Admin</Link>}
             {user.role === 'merchant' && <Link to="/merchant" style={styles.link}>Panel Comercio</Link>}

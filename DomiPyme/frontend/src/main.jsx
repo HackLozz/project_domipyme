@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthProvider';
+import { CartProvider } from './context/CartContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import './animations.css';
 
@@ -19,7 +20,9 @@ if (!container) {
       <ErrorBoundary>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <CartProvider>
+              <App />
+            </CartProvider>
           </AuthProvider>
         </BrowserRouter>
       </ErrorBoundary>
