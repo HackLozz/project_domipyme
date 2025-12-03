@@ -136,3 +136,97 @@ class OrderItem(models.Model):
     product = models.ForeignKey("shops.Product", on_delete=models.SET_NULL, null=True)
     price = models.DecimalField(max_digits=12, decimal_places=2)
     quantity = models.IntegerField(default=1)
+
+    def __str__(self):
+        return f"{self.quantity}x {self.product.name if self.product else 'Deleted Product'} - Order {self.order.id}"
+
+
+class Payment(models.Model):
+    """
+    Modelo para registrar pagos procesados por Stripe
+    """
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('succeeded', 'Succeeded'),
+        ('failed', 'Failed'),
+        ('canceled', 'Canceled'),
+        ('refunded', 'Refunded'),
+    ]
+
+    PAYMENT_METHOD_CHOICES = [
+        ('stripe', 'Stripe'),
+        ('mercadopago', 'MercadoPago'),
+        ('paypal', 'PayPal'),
+        ('cash', 'Cash'),
+    ]
+
+    order = models.OneToOneField(
+        Order,
+        on_delete=models.CASCADE,
+        related_name='payment'
+    )
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='stripe'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='pending'
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, default='USD')
+    
+    # Stripe specific fields
+    stripe_payment_intent_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    stripe_client_secret = models.CharField(max_length=255, null=True, blank=True)
+    
+    # Transaction details
+    transaction_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
+    payment_data = models.JSONField(null=True, blank=True, help_text="Datos adicionales del proveedor de pago")
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order', '-created_at']),
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['stripe_payment_intent_id']),
+        ]
+
+    def __str__(self):
+        return f"Payment for Order {self.order.id} - {self.status} ({self.amount} {self.currency})"
+
+    def mark_as_succeeded(self):
+        """Marcar pago como exitoso y actualizar la orden"""
+        from django.utils import timezone
+        
+        self.status = 'succeeded'
+        self.paid_at = timezone.now()
+        self.save()
+        
+        # Actualizar orden
+        self.order.payment_confirmed = True
+        self.order.status = 'paid'
+        self.order.save()
+        
+        # Decrementar stock de productos
+        for item in self.order.items.all():
+            if item.product:
+                item.product.stock -= item.quantity
+                item.product.save()
+
+    def mark_as_failed(self):
+        """Marcar pago como fallido"""
+        self.status = 'failed'
+        self.save()
+        
+        # Cancelar orden
+        self.order.status = 'cancelled'
+        self.order.save()

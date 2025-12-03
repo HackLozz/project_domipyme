@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, OrderItem, Cart, CartItem
+from .models import Order, OrderItem, Cart, CartItem, Payment
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -88,7 +88,59 @@ class CheckoutSerializer(serializers.Serializer):
     items = OrderItemInputSerializer(many=True)
     shop_id = serializers.IntegerField(required=False)
 
+class PaymentSerializer(serializers.ModelSerializer):
+    """Serializer para Payment"""
+    class Meta:
+        model = Payment
+        fields = [
+            'id',
+            'order',
+            'payment_method',
+            'status',
+            'amount',
+            'currency',
+            'stripe_payment_intent_id',
+            'stripe_client_secret',
+            'transaction_id',
+            'created_at',
+            'updated_at',
+            'paid_at',
+        ]
+        read_only_fields = [
+            'id',
+            'stripe_payment_intent_id',
+            'stripe_client_secret',
+            'transaction_id',
+            'created_at',
+            'updated_at',
+            'paid_at',
+        ]
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    """Serializer para OrderItem con información del producto"""
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'product', 'product_name', 'price', 'quantity']
+
+
 class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True, read_only=True)
+    payment = PaymentSerializer(read_only=True)
+    
     class Meta:
         model = Order
-        fields = "__all__"
+        fields = [
+            'id',
+            'customer',
+            'shop',
+            'total',
+            'status',
+            'payment_confirmed',
+            'created_at',
+            'items',
+            'payment',
+        ]
+        read_only_fields = ['id', 'created_at']

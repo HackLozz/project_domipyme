@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions, viewsets
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from .serializers import (
     CheckoutSerializer,
     OrderSerializer,
@@ -9,13 +9,20 @@ from .serializers import (
     CartItemSerializer,
     AddToCartSerializer,
     UpdateCartItemSerializer,
+    PaymentSerializer,
 )
-from .models import Order, OrderItem, Cart, CartItem
+from .models import Order, OrderItem, Cart, CartItem, Payment
 from apps.shops.models import Product, Shop
 from decimal import Decimal
 from django.db import transaction
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.shortcuts import get_object_or_404
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+from django.http import HttpResponse
+import stripe
+import json
 
 class CheckoutView(APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -401,3 +408,179 @@ class CartViewSet(viewsets.ModelViewSet):
 
         cart_serializer = CartSerializer(user_cart, context={'request': request})
         return Response(cart_serializer.data, status=status.HTTP_200_OK)
+
+
+class CreatePaymentIntentView(APIView):
+    """
+    POST /api/payments/create-intent/
+    Body: {"order_id": 1}
+    Crea un PaymentIntent de Stripe para una orden
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        order_id = request.data.get('order_id')
+        if not order_id:
+            return Response(
+                {'detail': 'order_id es requerido'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Obtener orden
+        try:
+            order = Order.objects.get(id=order_id, customer=request.user)
+        except Order.DoesNotExist:
+            return Response(
+                {'detail': 'Orden no encontrada'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Verificar que no tenga payment existente
+        if hasattr(order, 'payment') and order.payment.status == 'succeeded':
+            return Response(
+                {'detail': 'Esta orden ya fue pagada'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Configurar Stripe
+        stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', 'sk_test_dummy')
+
+        try:
+            # Crear o actualizar Payment
+            payment, created = Payment.objects.get_or_create(
+                order=order,
+                defaults={
+                    'amount': order.total,
+                    'currency': 'usd',
+                    'payment_method': 'stripe',
+                    'status': 'pending',
+                }
+            )
+
+            # Si ya tiene PaymentIntent, retornarlo
+            if payment.stripe_payment_intent_id:
+                intent = stripe.PaymentIntent.retrieve(payment.stripe_payment_intent_id)
+            else:
+                # Crear PaymentIntent en Stripe
+                intent = stripe.PaymentIntent.create(
+                    amount=int(order.total * 100),  # Convertir a centavos
+                    currency='usd',
+                    metadata={
+                        'order_id': order.id,
+                        'customer_email': request.user.email,
+                    },
+                    automatic_payment_methods={
+                        'enabled': True,
+                    },
+                )
+
+                # Guardar datos en Payment
+                payment.stripe_payment_intent_id = intent.id
+                payment.stripe_client_secret = intent.client_secret
+                payment.status = 'processing'
+                payment.save()
+
+            return Response({
+                'client_secret': intent.client_secret,
+                'payment_intent_id': intent.id,
+                'amount': order.total,
+                'currency': 'usd',
+            }, status=status.HTTP_200_OK)
+
+        except stripe.error.StripeError as e:
+            return Response(
+                {'detail': f'Error de Stripe: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {'detail': f'Error: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+@csrf_exempt
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def stripe_webhook(request):
+    """
+    POST /api/payments/webhook/stripe/
+    Webhook de Stripe para procesar eventos de pago
+    """
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+    webhook_secret = getattr(settings, 'STRIPE_WEBHOOK_SECRET', None)
+
+    try:
+        if webhook_secret:
+            # Verificar firma del webhook
+            event = stripe.Webhook.construct_event(
+                payload, sig_header, webhook_secret
+            )
+        else:
+            # Modo desarrollo sin verificación
+            event = json.loads(payload)
+
+    except ValueError:
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError:
+        return HttpResponse(status=400)
+
+    # Manejar evento
+    if event['type'] == 'payment_intent.succeeded':
+        payment_intent = event['data']['object']
+        handle_payment_success(payment_intent)
+    
+    elif event['type'] == 'payment_intent.payment_failed':
+        payment_intent = event['data']['object']
+        handle_payment_failure(payment_intent)
+
+    return HttpResponse(status=200)
+
+
+def handle_payment_success(payment_intent):
+    """Procesar pago exitoso"""
+    payment_intent_id = payment_intent['id']
+    
+    try:
+        payment = Payment.objects.get(stripe_payment_intent_id=payment_intent_id)
+        
+        with transaction.atomic():
+            # Marcar pago como exitoso (esto también actualiza la orden y decrementa stock)
+            payment.mark_as_succeeded()
+            
+            # Aquí podrías enviar email de confirmación
+            # send_order_confirmation_email(payment.order)
+            
+    except Payment.DoesNotExist:
+        # Log error: payment not found
+        pass
+
+
+def handle_payment_failure(payment_intent):
+    """Procesar pago fallido"""
+    payment_intent_id = payment_intent['id']
+    
+    try:
+        payment = Payment.objects.get(stripe_payment_intent_id=payment_intent_id)
+        
+        with transaction.atomic():
+            # Marcar pago como fallido
+            payment.mark_as_failed()
+            
+    except Payment.DoesNotExist:
+        # Log error: payment not found
+        pass
+
+
+class PaymentViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet para consultar pagos
+    Solo lectura para clientes
+    """
+    serializer_class = PaymentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        """Obtener pagos del usuario autenticado"""
+        return Payment.objects.filter(order__customer=self.request.user).select_related('order')

@@ -7,14 +7,25 @@ from .views import (
     OrderStatusUpdateView,
     MerchantOrdersStatsView,
     CartViewSet,
+    CreatePaymentIntentView,
+    stripe_webhook,
+    PaymentViewSet,
 )
 from rest_framework import routers
 
 router = routers.DefaultRouter()
 router.register(r'cart', CartViewSet, basename='cart')
+router.register(r'payment-history', PaymentViewSet, basename='payment')
 
 urlpatterns = [
+    # Payment endpoints (antes del router para evitar conflictos)
+    path('payments/create-intent/', CreatePaymentIntentView.as_view(), name='payments-create-intent'),
+    path('payments/webhook/stripe/', stripe_webhook, name='payments-webhook-stripe'),
+    
+    # Router endpoints
     path("", include(router.urls)),
+    
+    # Order endpoints
     path("checkout/", CheckoutView.as_view(), name="orders-checkout"),
     path("orders/my/", MyOrdersView.as_view(), name="orders-my"),
     path('orders/<int:pk>/', OrderDetailView.as_view(), name='orders-detail'),
