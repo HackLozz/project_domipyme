@@ -399,3 +399,149 @@ class ProductViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='analytics/sales', permission_classes=[IsAuthenticated])
+    def analytics_sales(self, request):
+        """
+        GET /api/products/analytics/sales/?period=7d
+        Analíticas de ventas por período (7d, 30d, 90d, 1y, all).
+        Solo para merchants.
+        """
+        user = request.user
+        if not user.is_merchant:
+            raise exceptions.PermissionDenied("Solo los comerciantes pueden acceder a analíticas.")
+        
+        from apps.orders.models import Order, OrderItem
+        from django.db.models import Sum, Count, Avg, F
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        period = request.query_params.get('period', '30d')
+        now = timezone.now()
+        
+        # Calcular fecha de inicio según período
+        period_map = {
+            '7d': timedelta(days=7),
+            '30d': timedelta(days=30),
+            '90d': timedelta(days=90),
+            '1y': timedelta(days=365),
+        }
+        
+        if period in period_map:
+            start_date = now - period_map[period]
+            orders = Order.objects.filter(created_at__gte=start_date)
+        else:  # 'all'
+            orders = Order.objects.all()
+        
+        # Filtrar por productos del merchant
+        merchant_products = ProductModel.objects.filter(shop__owner=user)
+        order_items = OrderItem.objects.filter(
+            product__in=merchant_products,
+            order__in=orders
+        ).select_related('order', 'product', 'product__shop')
+        
+        # Calcular métricas
+        total_sales = order_items.aggregate(
+            total=Sum(F('quantity') * F('price'))
+        )['total'] or 0
+        
+        total_orders = order_items.values('order').distinct().count()
+        total_items_sold = order_items.aggregate(total=Sum('quantity'))['total'] or 0
+        avg_order_value = total_sales / total_orders if total_orders > 0 else 0
+        
+        # Productos más vendidos
+        top_products = order_items.values(
+            'product__id',
+            'product__name',
+            'product__shop__name'
+        ).annotate(
+            total_quantity=Sum('quantity'),
+            total_revenue=Sum(F('quantity') * F('price'))
+        ).order_by('-total_quantity')[:10]
+        
+        # Ventas por día (últimos 30 días para gráfico)
+        if period in ['7d', '30d']:
+            days = 7 if period == '7d' else 30
+            sales_by_day = []
+            for i in range(days):
+                day = now - timedelta(days=i)
+                day_start = day.replace(hour=0, minute=0, second=0, microsecond=0)
+                day_end = day_start + timedelta(days=1)
+                
+                day_items = order_items.filter(
+                    order__created_at__gte=day_start,
+                    order__created_at__lt=day_end
+                )
+                day_total = day_items.aggregate(
+                    total=Sum(F('quantity') * F('price'))
+                )['total'] or 0
+                
+                sales_by_day.append({
+                    'date': day_start.strftime('%Y-%m-%d'),
+                    'total': float(day_total)
+                })
+            
+            sales_by_day.reverse()  # Orden cronológico
+        else:
+            sales_by_day = []
+        
+        return Response({
+            'period': period,
+            'total_sales': float(total_sales),
+            'total_orders': total_orders,
+            'total_items_sold': total_items_sold,
+            'avg_order_value': float(avg_order_value),
+            'top_products': list(top_products),
+            'sales_by_day': sales_by_day,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='analytics/inventory', permission_classes=[IsAuthenticated])
+    def analytics_inventory(self, request):
+        """
+        GET /api/products/analytics/inventory/
+        Analíticas de inventario: stock total, productos activos, categorías, etc.
+        Solo para merchants.
+        """
+        user = request.user
+        if not user.is_merchant:
+            raise exceptions.PermissionDenied("Solo los comerciantes pueden acceder a analíticas.")
+        
+        from django.db.models import Sum, Count, Avg, F
+
+        # Productos del merchant
+        products = ProductModel.objects.filter(shop__owner=user)
+
+        # Métricas generales
+        total_products = products.count()
+        active_products = products.filter(active=True).count()
+        inactive_products = products.filter(active=False).count()
+        total_stock_value = products.aggregate(
+            total=Sum(F('stock') * F('price'))
+        )['total'] or 0
+        avg_price = products.aggregate(avg=Avg('price'))['avg'] or 0
+        
+        # Stock por rango
+        out_of_stock = products.filter(stock=0).count()
+        low_stock = products.filter(stock__gt=0, stock__lte=10).count()
+        medium_stock = products.filter(stock__gt=10, stock__lte=50).count()
+        high_stock = products.filter(stock__gt=50).count()
+        
+        # Productos por categoría
+        products_by_category = products.values('category__name').annotate(
+            count=Count('id')
+        ).order_by('-count')[:10]
+        
+        return Response({
+            'total_products': total_products,
+            'active_products': active_products,
+            'inactive_products': inactive_products,
+            'total_stock_value': float(total_stock_value),
+            'avg_price': float(avg_price),
+            'stock_distribution': {
+                'out_of_stock': out_of_stock,
+                'low_stock': low_stock,
+                'medium_stock': medium_stock,
+                'high_stock': high_stock,
+            },
+            'products_by_category': list(products_by_category),
+        }, status=status.HTTP_200_OK)

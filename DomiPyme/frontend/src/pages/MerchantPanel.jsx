@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import api from "../components/Api";
 import { useAuth } from "../context/AuthProvider";
 import { Navigate, Link } from "react-router-dom";
+import AnalyticsDashboard from "../components/AnalyticsDashboard";
 
 const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(Number(n || 0));
 
@@ -24,6 +25,7 @@ export default function MerchantPanel() {
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [editingStock, setEditingStock] = useState(null); // {productId, value}
   const [showInventory, setShowInventory] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // overview | analytics
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 10);
@@ -160,6 +162,28 @@ export default function MerchantPanel() {
         )}
       </div>
 
+      {/* Tabs de navegación */}
+      <div style={styles.tabsContainer}>
+        <button
+          onClick={() => setActiveTab('overview')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'overview' ? styles.tabActive : {}),
+          }}
+        >
+          📊 Resumen
+        </button>
+        <button
+          onClick={() => setActiveTab('analytics')}
+          style={{
+            ...styles.tab,
+            ...(activeTab === 'analytics' ? styles.tabActive : {}),
+          }}
+        >
+          📈 Analíticas
+        </button>
+      </div>
+
       {!shop ? (
         <div style={styles.emptyState}>
           <div style={styles.emptyIcon}>🏪</div>
@@ -167,6 +191,8 @@ export default function MerchantPanel() {
           <p style={styles.emptyText}>Crea tu tienda para empezar a vender productos en DomiPyme</p>
           <Link to="/merchant/shop/create" style={styles.btnPrimary}>Crear mi tienda</Link>
         </div>
+      ) : activeTab === 'analytics' ? (
+        <AnalyticsDashboard />
       ) : (
         <>
           <div style={styles.statsGrid}>
@@ -969,5 +995,29 @@ const styles = {
   statusPending: {
     color: '#f59e0b',
     fontSize: 16,
+  },
+  tabsContainer: {
+    display: 'flex',
+    gap: '8px',
+    marginBottom: '24px',
+    borderBottom: '2px solid #e5e7eb',
+    paddingBottom: '0',
+  },
+  tab: {
+    padding: '12px 24px',
+    background: 'transparent',
+    border: 'none',
+    borderBottom: '3px solid transparent',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6b7280',
+    transition: 'all 200ms ease',
+    marginBottom: '-2px',
+  },
+  tabActive: {
+    color: '#3b82f6',
+    borderBottomColor: '#3b82f6',
+    fontWeight: '600',
   },
 };
