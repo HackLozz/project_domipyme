@@ -1,12 +1,13 @@
 /* Login.css - Responsive Login Page */
 
+/* Fondo similar al resto de páginas (gris claro, sin gradiente fuerte) */
 .login-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 60%, #fb7185 100%);
+  padding: 32px;
+  background: #f3f4f6;
   position: relative;
   overflow: hidden;
 }
@@ -18,21 +19,35 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="none"/><path d="M0 0L50 50M50 50L100 0M0 100L50 50M50 50L100 100" stroke="rgba(255,255,255,0.05)" stroke-width="2"/></svg>');
-  background-size: 100px 100px;
-  opacity: 0.3;
+  background: url('data:image/svg+xml,<svg width="120" height="120" xmlns="http://www.w3.org/2000/svg"><rect width="120" height="120" fill="none"/><circle cx="60" cy="60" r="56" stroke="rgba(59,130,246,0.07)" stroke-width="8" fill="none"/></svg>');
+  background-size: 120px 120px;
+  opacity: 0.18;
+  z-index: 0;
 }
 
 .login-card {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(15,23,42,0.10);
   width: 100%;
   max-width: 440px;
-  padding: 40px;
+  padding: 44px 36px;
   position: relative;
   z-index: 1;
   animation: loginEnter 400ms ease both;
+}
+/* Si hay .card en el login, aplicar sombra y hover como en otras páginas */
+.card {
+  transition: transform 160ms ease, box-shadow 160ms ease;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.04);
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(2,6,23,0.10);
+}
+/* Si hay .row en el login, aplicar hover */
+.row:hover {
+  background: rgba(249,250,251,0.7);
 }
 
 @keyframes loginEnter {

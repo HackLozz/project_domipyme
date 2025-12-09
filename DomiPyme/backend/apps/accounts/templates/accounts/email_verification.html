@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Inter, Arial, sans-serif; background: #f8fafc; color: #222;">
+    <div style="max-width: 480px; margin: 0 auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.07); padding: 32px;">
+      <h2 style="color: #3b82f6;">Verifica tu correo</h2>
+      <p>Hola {{ user.first_name }},</p>
+      <p>Gracias por registrarte en <strong>DomiPyme</strong>.</p>
+      <p>Tu código de verificación es:</p>
+      <div style="font-size: 2rem; font-weight: bold; letter-spacing: 2px; color: #10b981; margin: 16px 0;">{{ code }}</div>
+      <p>Ingresa este código en la plataforma para activar tu cuenta.</p>
+      <p style="margin-top: 32px; color: #6b7280; font-size: 13px;">Si no solicitaste este registro, ignora este correo.</p>
+      <hr style="margin: 24px 0; border: none; border-top: 1px solid #eee;">
+      <p style="font-size: 13px; color: #6b7280;">Equipo DomiPyme</p>
+    </div>
+  </body>
+</html>

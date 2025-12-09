@@ -54,14 +54,15 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const res = await api.get('auth/me/');
+      const res = await api.get(API_ROUTES.AUTH.ME);
       const u = res.data;
+      // Priorizar el campo 'role' si está presente
       const normalized = {
         id: u.id,
         email: u.email,
         first_name: u.first_name || '',
         last_name: u.last_name || '',
-        role: u.is_staff ? 'admin' : (u.is_merchant ? 'merchant' : 'customer'),
+        role: u.role || (u.is_staff ? 'admin' : (u.is_merchant ? 'merchant' : 'customer')),
         is_staff: !!u.is_staff,
         is_merchant: !!u.is_merchant,
       };
@@ -73,7 +74,6 @@ export function AuthProvider({ children }) {
       // Si auth/me devuelve 401 -> token inválido/expirado -> limpiamos estado y salimos silenciosamente
       const status = err?.response?.status;
       if (status === 401 || status === 403) {
-        // limpiamos tokens y user para evitar bucles y errores en consola
         clearAuth();
         setLoading(false);
         return;
@@ -97,7 +97,6 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      // no pudimos autenticar ni parsear -> limpiamos
       clearAuth();
       setLoading(false);
       return;
@@ -113,17 +112,17 @@ export function AuthProvider({ children }) {
       }
     } catch {}
 
-    loadUser();
+    loadUser()
+    const access = localStorage.getItem('access_token');
+    if (access) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+    }
   }, [loadUser]);
 
   const login = async (email, password) => {
     try {
       let res;
-      try {
-        res = await api.post('auth/login/', { email, password });
-      } catch (e) {
-        res = await api.post('auth/token/', { email, password });
-      }
+          res = await api.post('auth/token/', { email, password });
 
       const access = res.data.access ?? res.data.access_token ?? res.data.accessToken ?? null;
       const refresh = res.data.refresh ?? res.data.refresh_token ?? res.data.refreshToken ?? null;

@@ -253,13 +253,13 @@ export default function Register() {
       const resp = await api.post('/auth/register/', payload);
 
       if (resp && (resp.status === 201 || resp.status === 200)) {
-        showToast('¡Registro exitoso! Ahora puedes iniciar sesión', 'success', 4000);
+        showToast('¡Registro exitoso! Verifica tu correo para activar la cuenta', 'success', 4000);
         setTimeout(() => {
-          nav('/login', { replace: true });
+          nav('/verify-email', { state: { email: form.email.trim() }, replace: true });
         }, 1500);
       } else {
-        showToast('Registro completado. Por favor inicia sesión', 'info');
-        setTimeout(() => nav('/login'), 1500);
+        showToast('Registro completado. Por favor verifica tu correo', 'info');
+        setTimeout(() => nav('/verify-email', { state: { email: form.email.trim() }, replace: true }), 1500);
       }
     } catch (err) {
       console.error('Register error:', err);
@@ -534,7 +534,7 @@ export default function Register() {
                   style={styles.toggleBtn}
                   aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
-                  {showPassword ? '🙈' : '👁️'}
+                  {showPassword ? '👁️‍🗨️' : '👁️'}
                 </button>
               </div>
               
@@ -599,7 +599,7 @@ export default function Register() {
                   style={styles.toggleBtn}
                   aria-label={showPasswordConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
-                  {showPasswordConfirm ? '🙈' : '👁️'}
+                  {showPasswordConfirm ? '👁️‍🗨️' : '👁️'}
                 </button>
               </div>
               {fieldErrors.passwordConfirm && (

@@ -42,7 +42,7 @@ api.interceptors.request.use(
 
 // Response interceptor -> refresh token on 401 (Simple JWT style)
 api.interceptors.response.use(
-  (res) => res,
+  (response) => response,
   async (err) => {
     const originalRequest = err?.config;
 

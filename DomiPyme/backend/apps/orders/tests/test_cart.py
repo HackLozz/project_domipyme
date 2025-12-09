@@ -336,7 +336,7 @@ class TestCartViewSet:
         client.post('/api/cart/add-item/', {'product_id': product2.id, 'quantity': 1}, format='json')
         
         # 3. Fusionar carrito anónimo
-        response3 = client.post('/api/cart/merge-anonymous/', {'session_key': session_key}, format='json')
+        response3 = client.post('cart/merge-anonymous/', {'session_key': session_key}, format='json')
         
         # 4. Verificar que ahora tiene ambos productos
         assert response3.status_code == status.HTTP_200_OK
@@ -358,7 +358,7 @@ class TestCartViewSet:
         client.post('/api/cart/add-item/', {'product_id': product1.id, 'quantity': 3}, format='json')
         
         # 3. Fusionar carrito anónimo
-        response3 = client.post('/api/cart/merge-anonymous/', {'session_key': session_key}, format='json')
+        response3 = client.post('cart/merge-anonymous/', {'session_key': session_key}, format='json')
         
         # 4. Verificar que la cantidad se sumó: 3 + 2 = 5
         assert response3.status_code == status.HTTP_200_OK
@@ -370,7 +370,7 @@ class TestCartViewSet:
         """Test: merge-anonymous requiere autenticación"""
         client = APIClient()
         
-        response = client.post('/api/cart/merge-anonymous/', {'session_key': 'abc123'}, format='json')
+        response = client.post('cart/merge-anonymous/', {'session_key': 'abc123'}, format='json')
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_cart_unique_together_constraint(self, setup_data):

@@ -91,6 +91,15 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+    def perform_create(self, serializer):
+        user = serializer.save(is_active=False)
+        # Generar y enviar código de verificación
+        from .email_verification import generate_code, send_verification_email
+        from .models_email_verification import EmailVerification
+        code = generate_code()
+        EmailVerification.objects.create(user=user, code=code)
+        send_verification_email(user, code)
+
 
 class CheckEmailAvailabilityView(APIView):
     """

@@ -2,6 +2,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import api from '../components/Api';
 import { useAuth } from './AuthProvider';
+import { showToast } from '../components/Toast';
 
 export const CartContext = createContext();
 
@@ -21,17 +22,19 @@ export const CartProvider = ({ children }) => {
     }
   }, [user]);
 
+  // Unificar clave localStorage
+  const CART_KEY = 'dp_cart';
+
   const fetchCart = async () => {
     setLoading(true);
     try {
       const response = await api.get('cart/');
       setCart(response.data);
-      // Guardar en localStorage para persistencia
-      localStorage.setItem('cart', JSON.stringify(response.data));
+      localStorage.setItem(CART_KEY, JSON.stringify(response.data));
     } catch (err) {
-      console.error('Error al cargar carrito:', err);
+      showToast('Error al cargar carrito', 'error');
       // Intentar cargar desde localStorage
-      const savedCart = localStorage.getItem('cart');
+      const savedCart = localStorage.getItem(CART_KEY);
       if (savedCart) {
         setCart(JSON.parse(savedCart));
       }
@@ -44,10 +47,10 @@ export const CartProvider = ({ children }) => {
     const sessionKey = getSessionKey();
     if (sessionKey) {
       try {
-        await api.post('/api/cart/merge-anonymous/', { session_key: sessionKey });
+        await api.post('cart/merge-anonymous/', { session_key: sessionKey });
         localStorage.removeItem('session_key');
       } catch (err) {
-        console.error('Error al fusionar carrito:', err);
+        showToast('Error al fusionar carrito', 'error');
       }
     }
     fetchCart();
@@ -70,11 +73,12 @@ export const CartProvider = ({ children }) => {
         quantity
       });
       setCart(response.data);
-      localStorage.setItem('cart', JSON.stringify(response.data));
+      localStorage.setItem(CART_KEY, JSON.stringify(response.data));
+      showToast('Producto agregado al carrito', 'success', 1500);
       return { success: true, cart: response.data };
     } catch (err) {
-      console.error('Error al agregar al carrito:', err);
       const errorMsg = err.response?.data?.detail || 'Error al agregar al carrito';
+      showToast(errorMsg, 'error');
       return { success: false, error: errorMsg };
     } finally {
       setLoading(false);
@@ -84,15 +88,16 @@ export const CartProvider = ({ children }) => {
   const updateQuantity = async (itemId, quantity) => {
     setLoading(true);
     try {
-      const response = await api.patch(`/api/cart/update-item/${itemId}/`, {
+      const response = await api.patch(`cart/update-item/${itemId}/`, {
         quantity
       });
       setCart(response.data);
-      localStorage.setItem('cart', JSON.stringify(response.data));
+      localStorage.setItem(CART_KEY, JSON.stringify(response.data));
+      showToast('Cantidad actualizada', 'success', 1200);
       return { success: true, cart: response.data };
     } catch (err) {
-      console.error('Error al actualizar cantidad:', err);
       const errorMsg = err.response?.data?.detail || 'Error al actualizar cantidad';
+      showToast(errorMsg, 'error');
       return { success: false, error: errorMsg };
     } finally {
       setLoading(false);
@@ -102,12 +107,13 @@ export const CartProvider = ({ children }) => {
   const removeItem = async (itemId) => {
     setLoading(true);
     try {
-      const response = await api.delete(`/api/cart/remove-item/${itemId}/`);
+      const response = await api.delete(`cart/remove-item/${itemId}/`);
       setCart(response.data);
-      localStorage.setItem('cart', JSON.stringify(response.data));
+      localStorage.setItem(CART_KEY, JSON.stringify(response.data));
+      showToast('Producto eliminado del carrito', 'info', 1200);
       return { success: true, cart: response.data };
     } catch (err) {
-      console.error('Error al eliminar item:', err);
+      showToast('Error al eliminar item', 'error');
       return { success: false, error: 'Error al eliminar item' };
     } finally {
       setLoading(false);
@@ -119,10 +125,11 @@ export const CartProvider = ({ children }) => {
     try {
       const response = await api.post('cart/clear/');
       setCart(response.data);
-      localStorage.setItem('cart', JSON.stringify(response.data));
+      localStorage.setItem(CART_KEY, JSON.stringify(response.data));
+      showToast('Carrito vaciado exitosamente', 'success', 1500);
       return { success: true };
     } catch (err) {
-      console.error('Error al vaciar carrito:', err);
+      showToast('Error al vaciar carrito', 'error');
       return { success: false, error: 'Error al vaciar carrito' };
     } finally {
       setLoading(false);

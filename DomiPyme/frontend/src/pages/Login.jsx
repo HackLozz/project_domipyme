@@ -1,5 +1,7 @@
 // src/pages/Login.jsx
 import React, { useEffect, useRef, useState } from 'react';
+// Estructura para internacionalización (i18n)
+// import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
 import { showToast } from '../components/Toast';
@@ -8,6 +10,7 @@ import Button from '../components/Button';
 import './Login.css';
 
 export default function Login() {
+  // const { t } = useTranslation(); // Para i18n futuro
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
@@ -20,6 +23,7 @@ export default function Login() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
+  const [captchaRequired, setCaptchaRequired] = useState(false); // Hook para CAPTCHA
 
   const isMountedRef = useRef(true);
   const nav = useNavigate();
@@ -30,21 +34,28 @@ export default function Login() {
   useEffect(() => {
     // animación de entrada ligera
     const t = setTimeout(() => setMounted(true), 8);
-
-    // marcar mounted para evitar setState luego del unmount
     isMountedRef.current = true;
+    // Redirección automática si ya está autenticado
+    if (auth.user) {
+      nav(from, { replace: true });
+    }
     return () => {
       clearTimeout(t);
       isMountedRef.current = false;
     };
-  }, []);
+  }, [auth.user, from, nav]);
 
   // Validación en tiempo real del email
   useEffect(() => {
     if (email && email.length > 0) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      // Validación extra: evitar emails temporales
+      const tempDomains = ['mailinator.com', 'tempmail', '10minutemail', 'guerrillamail'];
+      const domain = email.split('@')[1] || '';
       if (!emailRegex.test(email)) {
         setEmailError('Formato de email inválido');
+      } else if (tempDomains.some(d => domain.includes(d))) {
+        setEmailError('No se permiten emails temporales');
       } else {
         setEmailError('');
       }
@@ -53,11 +64,12 @@ export default function Login() {
     }
   }, [email]);
 
-  // Validación de contraseña
+  // Validación de contraseña mejorada (solo longitud mínima, feedback de seguridad)
   useEffect(() => {
     if (password && password.length > 0) {
-      if (password.length < 6) {
-        setPasswordError('La contraseña debe tener al menos 6 caracteres');
+      const minLength = 8;
+      if (password.length < minLength) {
+        setPasswordError('La contraseña debe tener al menos 8 caracteres');
       } else {
         setPasswordError('');
       }
@@ -85,8 +97,7 @@ export default function Login() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (loading || isLocked) return;
-    
+    if (loading || isLocked || captchaRequired) return;
     // Validaciones previas
     if (!email || emailError) {
       setError('Ingrese un email válido');
@@ -96,45 +107,41 @@ export default function Login() {
       setError('Ingrese una contraseña válida');
       return;
     }
-
     setError(null);
     setLoading(true);
-
     try {
-      await auth.login(email.trim(), password, from, { remember });
-
-      // Reset intentos fallidos en caso de éxito
+      // Sugerencia: implementar bloqueo en backend y/o CAPTCHA
+      // Si el backend responde con "captcha_required", activar el hook
+      const userData = await auth.login(email.trim(), password, from, { remember });
       setFailedAttempts(0);
       showToast('¡Bienvenido de vuelta! 🎉', 'success', 3000);
-
       const currentPath = location.pathname;
       if (isMountedRef.current && currentPath !== from) {
         nav(from, { replace: true });
       }
     } catch (err) {
       let msg = 'Credenciales inválidas';
-      try {
-        if (err?.response?.data) {
+      // Mejor gestión de errores de red y backend
+      if (err?.response) {
+        const status = err.response.status;
+        if (status === 0) msg = 'No se pudo conectar al servidor. Verifique su conexión.';
+        else if (status >= 500) msg = 'Error interno del servidor. Intente más tarde.';
+        else if (err.response.data?.captcha_required) {
+          setCaptchaRequired(true);
+          msg = 'Demasiados intentos. Complete el CAPTCHA.';
+        } else {
           const data = err.response.data;
-          msg =
-            data.detail ||
-            data.error ||
-            (typeof data === 'string' ? data : msg);
-        } else if (err?.message) {
-          msg = err.message;
+          msg = data.detail || data.error || (typeof data === 'string' ? data : msg);
         }
-      } catch (parseErr) {
-        // si algo falla al parsear, mantenemos mensaje por defecto
+      } else if (err?.message) {
+        msg = err.message;
       }
-
       if (isMountedRef.current) {
         const newAttempts = failedAttempts + 1;
         setFailedAttempts(newAttempts);
-        
-        // Bloquear después de 5 intentos fallidos
         if (newAttempts >= 5) {
           setIsLocked(true);
-          setLockoutTime(60); // 60 segundos de bloqueo
+          setLockoutTime(60);
           setError('Demasiados intentos fallidos. Cuenta bloqueada temporalmente por 60 segundos.');
           showToast('Cuenta bloqueada temporalmente', 'error');
         } else {
@@ -151,15 +158,15 @@ export default function Login() {
   };
 
   return (
-    <div className="login-page">
-      <div className="login-card">
+    <div className="login-page" role="main" aria-label="Página de inicio de sesión">
+      <div className="login-card" aria-labelledby="login-title">
         <div className="login-header">
-          <div className="login-logo">🔐</div>
-          <h2 className="login-title">Iniciar sesión</h2>
+          <div className="login-logo" aria-hidden="true">🔐</div>
+          <h2 className="login-title" id="login-title">Iniciar sesión</h2>
           <p className="login-subtitle">Accede a tu cuenta para gestionar tiendas, pedidos y ventas.</p>
         </div>
 
-        <form onSubmit={submit} className="login-form">
+        <form onSubmit={submit} className="login-form" aria-describedby="login-subtitle">
           <div className="form-group">
             <label className="form-label form-label-required" htmlFor="email">
               Email
@@ -247,9 +254,17 @@ export default function Login() {
               onChange={() => setRemember((v) => !v)}
               disabled={loading}
               className="form-checkbox"
+              aria-checked={remember}
+              aria-label="Recordar sesión"
             />
             <label htmlFor="remember" className="form-checkbox-label">
               Recordarme
+              <span
+                tabIndex={0}
+                role="tooltip"
+                aria-label="Si está activado, tu sesión se mantendrá iniciada en este dispositivo."
+                style={{ marginLeft: 6, color: '#6b7280', fontSize: 12 }}
+              >ℹ️</span>
             </label>
           </div>
 
@@ -307,14 +322,39 @@ export default function Login() {
           <div className="login-links">
             ¿No tienes cuenta? <Link to="/register" className="login-link">Regístrate</Link>
           </div>
+
+          <div className="login-divider">
+            <span></span>
+          </div>
+          <div className="login-links">
+            <Link to="/privacy" className="login-link">Política de privacidad</Link> |{' '}
+            <Link to="/terms" className="login-link">Términos y condiciones</Link>
+          </div>
         </form>
 
         {loading && (
-          <div className="loading-overlay">
+          <div className="loading-overlay" role="status" aria-live="polite">
             <LoadingSpinner />
+          </div>
+        )}
+
+        {/* Hook para CAPTCHA, sugerencia de integración */}
+        {captchaRequired && (
+          <div className="captcha-container" role="alert" style={{marginTop:20, padding:16, background:'#fef3c7', border:'2px solid #fbbf24', borderRadius:10}}>
+            <span>Por favor, completa el CAPTCHA para continuar.</span>
+            {/* Ejemplo de integración: */}
+            <div style={{marginTop:12}}>
+              <input type="text" placeholder="Escribe '1234' para continuar" aria-label="Captcha" style={{padding:8, borderRadius:6, border:'1px solid #ccc'}} />
+              <Button style={{marginLeft:8}} onClick={()=>setCaptchaRequired(false)}>Validar</Button>
+            </div>
+            <div style={{fontSize:12, color:'#92400e', marginTop:8}}>Este es un ejemplo de CAPTCHA. Integra Google reCAPTCHA para producción.</div>
           </div>
         )}
       </div>
     </div>
   );
+// Sugerencia: agregar pruebas automatizadas para Login.jsx usando Jest/Testing Library
+// Ejemplo:
+// import { render, screen, fireEvent } from '@testing-library/react';
+// test('renderiza el formulario de login', () => { ... });
 }

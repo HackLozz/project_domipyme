@@ -183,7 +183,7 @@ class MerchantOrdersStatsView(APIView):
 
 class OrderStatusUpdateView(APIView):
     """
-    PUT /api/orders/<id>/status/ {"status": "preparing"}
+    PUT orders/<id>/status/ {"status": "preparing"}
     Allowed transitions:
       pending -> paid|cancelled
       paid -> preparing|cancelled
@@ -272,7 +272,7 @@ class CartViewSet(viewsets.ModelViewSet):
         return cart
 
     def list(self, request, *args, **kwargs):
-        """GET /api/cart/ - Obtener el carrito actual"""
+        """GET cart/ - Obtener el carrito actual"""
         cart = self.get_or_create_cart()
         serializer = self.get_serializer(cart)
         return Response(serializer.data)
@@ -280,7 +280,7 @@ class CartViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], url_path='add-item')
     def add_item(self, request):
         """
-        POST /api/cart/add-item/
+        POST cart/add-item/
         Body: {"product_id": 1, "quantity": 2}
         Agregar un producto al carrito o incrementar cantidad
         """
@@ -326,7 +326,7 @@ class CartViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['patch'], url_path='update-item/(?P<item_id>[^/.]+)')
     def update_item(self, request, item_id=None):
         """
-        PATCH /api/cart/update-item/{item_id}/
+        PATCH cart/update-item/{item_id}/
         Body: {"quantity": 3}
         Actualizar la cantidad de un item (si quantity=0, elimina el item)
         """
@@ -357,7 +357,7 @@ class CartViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['delete'], url_path='remove-item/(?P<item_id>[^/.]+)')
     def remove_item(self, request, item_id=None):
         """
-        DELETE /api/cart/remove-item/{item_id}/
+        DELETE cart/remove-item/{item_id}/
         Eliminar un item del carrito
         """
         cart = self.get_or_create_cart()
@@ -382,7 +382,7 @@ class CartViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'], url_path='merge-anonymous', permission_classes=[IsAuthenticated])
     def merge_anonymous(self, request):
         """
-        POST /api/cart/merge-anonymous/
+        POST cart/merge-anonymous/
         Body: {"session_key": "abc123..."}
         Fusionar carrito anónimo con el carrito del usuario autenticado
         Usado al hacer login
