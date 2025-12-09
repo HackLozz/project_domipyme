@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthProvider';
 import { showToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/Button';
+import './Login.css';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -14,6 +15,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [showPw, setShowPw] = useState(false);
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockoutTime, setLockoutTime] = useState(0);
 
   const isMountedRef = useRef(true);
   const nav = useNavigate();
@@ -33,11 +39,61 @@ export default function Login() {
     };
   }, []);
 
+  // Validación en tiempo real del email
+  useEffect(() => {
+    if (email && email.length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        setEmailError('Formato de email inválido');
+      } else {
+        setEmailError('');
+      }
+    } else {
+      setEmailError('');
+    }
+  }, [email]);
+
+  // Validación de contraseña
+  useEffect(() => {
+    if (password && password.length > 0) {
+      if (password.length < 6) {
+        setPasswordError('La contraseña debe tener al menos 6 caracteres');
+      } else {
+        setPasswordError('');
+      }
+    } else {
+      setPasswordError('');
+    }
+  }, [password]);
+
+  // Manejo de bloqueo temporal
+  useEffect(() => {
+    if (isLocked && lockoutTime > 0) {
+      const timer = setInterval(() => {
+        setLockoutTime(prev => {
+          if (prev <= 1) {
+            setIsLocked(false);
+            setFailedAttempts(0);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [isLocked, lockoutTime]);
+
   const submit = async (e) => {
     e.preventDefault();
-    if (loading) return;
-    if (!email) {
+    if (loading || isLocked) return;
+    
+    // Validaciones previas
+    if (!email || emailError) {
       setError('Ingrese un email válido');
+      return;
+    }
+    if (!password || passwordError) {
+      setError('Ingrese una contraseña válida');
       return;
     }
 
@@ -45,19 +101,17 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Usa la función login del contexto (evita duplicar peticiones)
-      // Conservé la firma que usabas: auth.login(email, password, from, { remember })
       await auth.login(email.trim(), password, from, { remember });
 
-      // Si auth.login no se encarga de redirigir, haremos la navegación aquí.
-      // Evitamos navegar si ya estamos en la ruta destino para no crear loops.
+      // Reset intentos fallidos en caso de éxito
+      setFailedAttempts(0);
+      showToast('¡Bienvenido de vuelta! 🎉', 'success', 3000);
+
       const currentPath = location.pathname;
       if (isMountedRef.current && currentPath !== from) {
         nav(from, { replace: true });
       }
-      // Si auth.login ya redirigió, la navegación será ignorada (no causa error).
     } catch (err) {
-      // intenta obtener un mensaje de error del servidor si existe (defensivo)
       let msg = 'Credenciales inválidas';
       try {
         if (err?.response?.data) {
@@ -74,12 +128,22 @@ export default function Login() {
       }
 
       if (isMountedRef.current) {
-        setError(msg);
-        showToast(msg, 'error');
+        const newAttempts = failedAttempts + 1;
+        setFailedAttempts(newAttempts);
+        
+        // Bloquear después de 5 intentos fallidos
+        if (newAttempts >= 5) {
+          setIsLocked(true);
+          setLockoutTime(60); // 60 segundos de bloqueo
+          setError('Demasiados intentos fallidos. Cuenta bloqueada temporalmente por 60 segundos.');
+          showToast('Cuenta bloqueada temporalmente', 'error');
+        } else {
+          setError(`${msg}. Intentos restantes: ${5 - newAttempts}`);
+          showToast(msg, 'error');
+        }
         setLoading(false);
       }
     } finally {
-      // Solo actualizar loading si el componente sigue montado
       if (isMountedRef.current) {
         setLoading(false);
       }
@@ -87,172 +151,170 @@ export default function Login() {
   };
 
   return (
-    <div style={styles.container}>
-      <style>{`
-        /* entrada de página / card */
-        .login-enter { animation: loginEnter 320ms ease both; }
-        @keyframes loginEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-header">
+          <div className="login-logo">🔐</div>
+          <h2 className="login-title">Iniciar sesión</h2>
+          <p className="login-subtitle">Accede a tu cuenta para gestionar tiendas, pedidos y ventas.</p>
+        </div>
 
-        /* microinteracciones */
-        .input-field { transition: box-shadow 160ms ease, transform 140ms ease, border-color 140ms ease; }
-        .input-field:focus { outline: none; box-shadow: 0 6px 18px rgba(17,24,39,0.06); transform: translateY(-1px); border-color: rgba(17,24,39,0.08); }
-
-        .btn-primary { transition: transform 160ms ease, box-shadow 160ms ease, opacity 140ms ease; }
-        .btn-primary:active { transform: translateY(1px) scale(0.997); }
-
-        .small-link { transition: color 120ms ease, transform 120ms ease; }
-        .small-link:hover { transform: translateY(-2px); }
-      `}</style>
-
-      <div style={{ ...styles.cardWrap, ...(mounted ? {} : { opacity: 0 }) }} className="login-enter" aria-live="polite">
-        <div style={styles.card}>
-          <div style={styles.header}>
-            <div>
-              <h2 style={styles.title}>Iniciar sesión</h2>
-              <p style={styles.subtitle}>Accede a tu cuenta para gestionar tiendas, pedidos y ventas.</p>
-            </div>
-          </div>
-
-          <form onSubmit={submit} style={styles.form} aria-describedby="login-desc">
-            <label style={styles.label} htmlFor="email">Email</label>
+        <form onSubmit={submit} className="login-form">
+          <div className="form-group">
+            <label className="form-label form-label-required" htmlFor="email">
+              Email
+              {email && !emailError && <span className="validation-success">✓</span>}
+            </label>
             <input
               id="email"
               name="email"
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              style={styles.input}
-              className="input-field"
+              className={`form-input ${emailError ? 'form-input-error' : ''} ${email && !emailError ? 'form-input-success' : ''}`}
               required
               autoComplete="email"
-              disabled={loading}
+              disabled={loading || isLocked}
               aria-required="true"
+              aria-invalid={!!emailError}
+              aria-describedby={emailError ? 'email-error' : undefined}
+              placeholder="tu@email.com"
             />
-
-            <label style={styles.label} htmlFor="password">Contraseña</label>
-            <input
-              id="password"
-              name="password"
-              type={showPw ? 'text' : 'password'}
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              style={styles.input}
-              className="input-field"
-              required
-              minLength={6}
-              autoComplete="current-password"
-              disabled={loading}
-              aria-required="true"
-            />
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-              <input type="checkbox" checked={showPw} onChange={() => setShowPw(v=>!v)} disabled={loading} />
-              Mostrar contraseña
-            </label>
-
-            <div style={styles.row}>
-              <label style={styles.remember}>
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={() => setRemember((v) => !v)}
-                  disabled={loading}
-                />{' '}
-                Recordarme
-              </label>
-
-              <Link to="/forgot-password" style={styles.smallLink}>¿Olvidaste tu contraseña?</Link>
-            </div>
-
-            {error && <div role="alert" style={styles.error}>{error}</div>}
-
-            <button
-              type="submit"
-              className="btn-primary"
-              style={{ ...styles.button, opacity: loading ? 0.85 : 1 }}
-              disabled={loading || !email || password.length < 6}
-              aria-busy={loading}
-            >
-              {loading ? (
-                <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
-                  <svg width="18" height="18" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg" aria-hidden>
-                    <defs>
-                      <linearGradient x1="8.042%" y1="0%" x2="65.682%" y2="23.865%" id="a">
-                        <stop stopColor="#fff" stopOpacity="0" offset="0%"/>
-                        <stop stopColor="#fff" stopOpacity=".631" offset="63.146%"/>
-                        <stop stopColor="#fff" offset="100%"/>
-                      </linearGradient>
-                    </defs>
-                    <g fill="none" fillRule="evenodd">
-                      <g transform="translate(1 1)">
-                        <path d="M36 18c0-9.94-8.06-18-18-18" stroke="rgba(255,255,255,0.35)" strokeWidth="2">
-                          <animateTransform attributeName="transform" type="rotate" from="0 18 18" to="360 18 18" dur="0.9s" repeatCount="indefinite"/>
-                        </path>
-                        <path d="M36 18c0-9.94-8.06-18-18-18" stroke="url(#a)" strokeWidth="2">
-                          <animateTransform attributeName="transform" type="rotate" from="0 18 18" to="360 18 18" dur="0.9s" repeatCount="indefinite"/>
-                        </path>
-                      </g>
-                    </g>
-                  </svg>
-                  Validando...
-                </span>
-              ) : (
-                'Entrar'
-              )}
-            </button>
-          </form>
-
-          <div style={styles.links}>
-            <Link to="/register" style={styles.link}>¿No tienes cuenta? Regístrate</Link>
-            <Link to="/" style={styles.link}>Volver al Home</Link>
+            {emailError && (
+              <span id="email-error" className="field-error" role="alert">
+                ⚠️ {emailError}
+              </span>
+            )}
           </div>
-        </div>
+
+          <div className="form-group">
+            <label className="form-label form-label-required" htmlFor="password">
+              Contraseña
+              {password && !passwordError && <span className="validation-success">✓</span>}
+            </label>
+            <div className="input-wrapper">
+              <input
+                id="password"
+                name="password"
+                type={showPw ? 'text' : 'password'}
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className={`form-input ${passwordError ? 'form-input-error' : ''} ${password && !passwordError ? 'form-input-success' : ''}`}
+                required
+                minLength={6}
+                autoComplete="current-password"
+                disabled={loading || isLocked}
+                aria-required="true"
+                aria-invalid={!!passwordError}
+                aria-describedby={passwordError ? 'password-error' : undefined}
+                placeholder="••••••••"
+              />
+              <span 
+                className="input-icon" 
+                onClick={() => !isLocked && setShowPw(v => !v)}
+                role="button"
+                tabIndex={0}
+                aria-label={showPw ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              >
+                {showPw ? '👁️' : '👁️‍🗨️'}
+              </span>
+            </div>
+            {passwordError && (
+              <span id="password-error" className="field-error" role="alert">
+                ⚠️ {passwordError}
+              </span>
+            )}
+            {password && !passwordError && (
+              <div className="password-strength">
+                <div className="password-strength-bar">
+                  <div 
+                    className={`password-strength-fill ${password.length >= 12 ? 'strong' : password.length >= 8 ? 'medium' : 'weak'}`}
+                    style={{ width: `${Math.min((password.length / 12) * 100, 100)}%` }}
+                  ></div>
+                </div>
+                <span className="password-strength-label">
+                  {password.length >= 12 ? 'Fuerte 💪' : password.length >= 8 ? 'Media 👍' : 'Débil ⚠️'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="form-checkbox-wrapper">
+            <input
+              id="remember"
+              type="checkbox"
+              checked={remember}
+              onChange={() => setRemember((v) => !v)}
+              disabled={loading}
+              className="form-checkbox"
+            />
+            <label htmlFor="remember" className="form-checkbox-label">
+              Recordarme
+            </label>
+          </div>
+
+          {error && (
+            <div role="alert" className={`error-message ${isLocked ? 'error-locked' : ''}`}>
+              <span>{isLocked ? '🔒' : '⚠️'}</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {isLocked && lockoutTime > 0 && (
+            <div className="lockout-timer">
+              <span className="lockout-icon">⏱️</span>
+              <span>Cuenta bloqueada. Reintenta en <strong>{lockoutTime}s</strong></span>
+            </div>
+          )}
+
+          {failedAttempts > 0 && failedAttempts < 5 && !isLocked && (
+            <div className="warning-message">
+              <span>⚠️</span>
+              <span>Intento {failedAttempts} de 5. Intenta de nuevo.</span>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className={`submit-button ${isLocked ? 'submit-button-locked' : ''}`}
+            disabled={loading || isLocked || !email || password.length < 6 || !!emailError || !!passwordError}
+            aria-busy={loading}
+          >
+            {loading ? (
+              <>
+                <span className="spinner-small"></span>
+                Validando...
+              </>
+            ) : isLocked ? (
+              `🔒 Bloqueado (${lockoutTime}s)`
+            ) : (
+              'Entrar'
+            )}
+          </button>
+
+          <div className="login-divider">
+            <span>o</span>
+          </div>
+
+          <div className="login-links">
+            <Link to="/forgot-password" className="login-link">¿Olvidaste tu contraseña?</Link>
+          </div>
+
+          <div className="login-divider">
+            <span></span>
+          </div>
+
+          <div className="login-links">
+            ¿No tienes cuenta? <Link to="/register" className="login-link">Regístrate</Link>
+          </div>
+        </form>
+
+        {loading && (
+          <div className="loading-overlay">
+            <LoadingSpinner />
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-/* ---------- estilos ---------- */
-const styles = {
-  container: {
-    minHeight: '80vh',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    background: '#f8fafc',
-    padding: 20,
-    fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial'
-  },
-  cardWrap: { width: '100%', maxWidth: 460, margin: '0 auto' },
-  card: {
-    background: '#fff',
-    padding: 28,
-    borderRadius: 12,
-    boxShadow: '0 10px 30px rgba(2,6,23,0.06)',
-    border: '1px solid rgba(15,23,42,0.03)'
-  },
-  header: { marginBottom: 6 },
-  title: { margin: 0, fontSize: 22 },
-  subtitle: { marginTop: 6, color: '#6b7280' },
-  form: { display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 },
-  label: { fontWeight: 700, fontSize: 13 },
-  input: { padding: 10, borderRadius: 8, border: '1px solid #e6e9ef', fontSize: 14, width: '100%' },
-  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  remember: { display: 'inline-flex', alignItems: 'center', gap: 8, color: '#374151' },
-  button: {
-    marginTop: 6,
-    padding: 12,
-    background: '#111827',
-    color: 'white',
-    border: 'none',
-    borderRadius: 10,
-    cursor: 'pointer',
-    fontWeight: 800,
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8
-  },
-  error: { color: '#b91c1c', background: '#fff1f2', padding: 10, borderRadius: 8, marginTop: 6 },
-  links: { marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'center' },
-  link: { color: '#111827', textDecoration: 'none', fontWeight: 700 }
-};

@@ -24,7 +24,7 @@ export const CartProvider = ({ children }) => {
   const fetchCart = async () => {
     setLoading(true);
     try {
-      const response = await api.get('/api/cart/');
+      const response = await api.get('cart/');
       setCart(response.data);
       // Guardar en localStorage para persistencia
       localStorage.setItem('cart', JSON.stringify(response.data));
@@ -65,7 +65,7 @@ export const CartProvider = ({ children }) => {
   const addToCart = async (productId, quantity = 1) => {
     setLoading(true);
     try {
-      const response = await api.post('/api/cart/add-item/', {
+      const response = await api.post('cart/add-item/', {
         product_id: productId,
         quantity
       });
@@ -117,7 +117,7 @@ export const CartProvider = ({ children }) => {
   const clearCart = async () => {
     setLoading(true);
     try {
-      const response = await api.post('/api/cart/clear/');
+      const response = await api.post('cart/clear/');
       setCart(response.data);
       localStorage.setItem('cart', JSON.stringify(response.data));
       return { success: true };

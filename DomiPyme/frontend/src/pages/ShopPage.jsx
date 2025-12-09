@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../components/Api';
 import axios from 'axios'; // para isCancel
+import './ShopPage.css';
 
 const ANIM_MS = 300;
 

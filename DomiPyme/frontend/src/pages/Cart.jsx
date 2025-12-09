@@ -2,7 +2,9 @@
 import React, { useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
+import { showToast } from '../components/Toast';
 import '../styles.css';
+import './Cart.css';
 
 const Cart = () => {
   const { cart, loading, updateQuantity, removeItem, clearCart } = useCart();
@@ -15,7 +17,11 @@ const Cart = () => {
     setUpdating(prev => ({ ...prev, [itemId]: true }));
     const result = await updateQuantity(itemId, newQuantity);
     if (!result.success) {
-      alert(result.error);
+      showToast(result.error, 'error');
+    } else if (newQuantity === 0) {
+      showToast('Producto removido del carrito', 'info', 2000);
+    } else {
+      showToast('Cantidad actualizada', 'success', 2000);
     }
     setUpdating(prev => ({ ...prev, [itemId]: false }));
   };
@@ -26,17 +32,23 @@ const Cart = () => {
     setUpdating(prev => ({ ...prev, [itemId]: true }));
     const result = await removeItem(itemId);
     if (!result.success) {
-      alert(result.error);
+      showToast(result.error, 'error');
+    } else {
+      showToast('Producto eliminado del carrito', 'success', 2000);
     }
     setUpdating(prev => ({ ...prev, [itemId]: false }));
   };
 
   const handleClearCart = async () => {
-    if (!confirm('¿Vaciar todo el carrito?')) return;
+    // Mejor usar un modal/dialog personalizado, pero window.confirm funciona como fallback
+    const userConfirmed = window.confirm('¿Estás seguro de que deseas vaciar todo el carrito? Esta acción no se puede deshacer.');
+    if (!userConfirmed) return;
     
     const result = await clearCart();
     if (!result.success) {
-      alert(result.error);
+      showToast(result.error, 'error');
+    } else {
+      showToast('Carrito vaciado exitosamente', 'success', 2000);
     }
   };
 

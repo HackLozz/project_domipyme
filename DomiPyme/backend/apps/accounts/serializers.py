@@ -43,44 +43,84 @@ class UserSerializer(serializers.ModelSerializer):
     """
     Serializer público del usuario. Los campos se construyen dinámicamente
     para acomodar distintos User models (first_name/last_name o full_name).
+    Incluye campo 'role' derivado para uso en frontend.
     """
+    role = serializers.SerializerMethodField()
+    
     class Meta:
         model = User
-        fields = tuple(_base_user_fields)
+        fields = tuple(_base_user_fields) + ("role",)
+    
+    def get_role(self, obj):
+        """Retorna el rol basado en flags del usuario."""
+        if obj.is_staff:
+            return "admin"
+        if obj.is_merchant:
+            return "merchant"
+        return "customer"
 
 
 class RegisterSerializer(serializers.ModelSerializer):
     """
     Registro que usa validate_password y UniqueValidator sobre email.
     Normaliza email (lowercase + strip) para evitar duplicados por mayúsculas.
+    Acepta role ('customer' o 'merchant') y phone.
     """
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     email = serializers.EmailField(
         required=True,
         validators=[UniqueValidator(queryset=User.objects.all(), message=_("Ese correo ya está registrado."))]
     )
+    phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        validators=[UniqueValidator(queryset=User.objects.all(), message=_("Ese teléfono ya está registrado."))]
+    )
+    role = serializers.ChoiceField(choices=['customer', 'merchant'], required=False, write_only=True)
 
     class Meta:
         model = User
         # Si el modelo no tiene first_name/last_name, field list se adapta
-        fields = ("email", "password") + tuple(
+        fields = ("email", "password", "phone", "role") + tuple(
             f for f in ("first_name", "last_name", "full_name") if _user_has_field(f)
         )
 
     def validate(self, data):
         pwd = data.get('password', '')
         email = data.get('email', '').strip().lower()
+        phone = data.get('phone', '').strip()
+        
         # Prevención: la contraseña no puede contener el correo
         if email and pwd and email in pwd.lower():
             raise serializers.ValidationError({"password": _("La contraseña no puede contener el correo.")})
+        
+        # Validar formato de teléfono si se proporciona
+        if phone:
+            if not phone.isdigit():
+                raise serializers.ValidationError({"phone": _("El teléfono solo debe contener números.")})
+            if len(phone) < 10 or len(phone) > 15:
+                raise serializers.ValidationError({"phone": _("El teléfono debe tener entre 10 y 15 dígitos.")})
+        
         return data
 
     def create(self, validated_data):
         # Normalizar email y delegar en create_user del manager (hash + señales)
         password = validated_data.pop("password")
         email = validated_data.pop("email").strip().lower()
+        role = validated_data.pop("role", "customer")
+        phone = validated_data.pop("phone", None)
+        
+        # Convertir role a is_merchant
+        is_merchant = (role == "merchant")
+        
         # Aseguramos que se usa el manager create_user
-        user = User.objects.create_user(email=email, password=password, **validated_data)
+        user = User.objects.create_user(
+            email=email,
+            password=password,
+            phone=phone if phone else None,
+            is_merchant=is_merchant,
+            **validated_data
+        )
         return user
 
 

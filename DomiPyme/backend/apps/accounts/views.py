@@ -1,4 +1,15 @@
-# backend/apps/accounts/views.py
+"""
+DomiPyme - Accounts Views
+Maneja autenticación, registro, gestión de usuarios y recuperación de contraseña.
+
+Features:
+- Registro de usuarios con validación de email y teléfono
+- Autenticación JWT con tokens de acceso y refresh
+- Sistema de recuperación de contraseña con emails HTML
+- Panel de administración con estadísticas
+- Gestión de notificaciones de usuario
+"""
+
 import logging
 
 from django.contrib.auth import get_user_model
@@ -14,7 +25,7 @@ from rest_framework import generics, status, permissions, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
 
@@ -38,7 +49,12 @@ token_generator = PasswordResetTokenGenerator()
 
 
 def _default_user_order_field():
-    # Prioriza date_joined si existe, si no usa created_at o last_login como fallback
+    """
+    Determina el campo de ordenamiento por defecto para usuarios.
+    
+    Returns:
+        str: Nombre del campo a usar para ordenamiento (date_joined, created_at, last_login o id)
+    """
     valid_fields = {f.name for f in User._meta.get_fields()}
     for candidate in ('date_joined', 'created_at', 'last_login', 'id'):
         if candidate in valid_fields:
@@ -46,6 +62,15 @@ def _default_user_order_field():
     return 'id'
 
 class AdminUserViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet de solo lectura para administradores.
+    
+    Permite a los administradores ver la lista de usuarios del sistema
+    y obtener detalles de usuarios individuales.
+    
+    Permissions:
+        - IsAdminUser: Solo usuarios con is_staff=True
+    """
     permission_classes = [IsAdminUser]
     ordering_field = _default_user_order_field()
     queryset = User.objects.all().order_by(f'-{ordering_field}')
@@ -53,17 +78,157 @@ class AdminUserViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class RegisterView(generics.CreateAPIView):
+    """
+    API endpoint para registro de nuevos usuarios.
+    
+    POST /api/v1/auth/register/
+    Body: { "email", "password", "first_name", "last_name", "phone", "is_merchant" }
+    
+    Returns:
+        201: Usuario creado exitosamente
+        400: Error de validación
+    """
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
 
-class ObtainTokenPairView(APIView):
+class CheckEmailAvailabilityView(APIView):
     """
-    Endpoint que devuelve access + refresh usando email + password.
-    Se añade throttling para evitar brute-force y se devuelve payload 'user' para frontend.
+    Verifica si un email está disponible para registro.
+    
+    POST /api/v1/auth/check-email/
+    Body: { "email": "test@example.com" }
+    
+    Returns:
+        200: { "available": true/false, "message": "..." }
+        400: Error de validación
+    
+    Note:
+        Incluye throttling para prevenir enumeración masiva de usuarios.
     """
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [AnonRateThrottle]  # ajusta en settings si quieres otro rate
+    throttle_classes = [AnonRateThrottle]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        
+        if not email:
+            return Response(
+                {"available": False, "message": "El email es requerido"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar formato básico
+        import re
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_pattern, email):
+            return Response(
+                {"available": False, "message": "Formato de email inválido"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar si existe
+        exists = User.objects.filter(email__iexact=email).exists()
+        
+        if exists:
+            return Response(
+                {"available": False, "message": "Este email ya está registrado"},
+                status=status.HTTP_200_OK
+            )
+        
+        return Response(
+            {"available": True, "message": "Email disponible"},
+            status=status.HTTP_200_OK
+        )
+
+
+class CheckPhoneAvailabilityView(APIView):
+    """
+    Verifica si un número de teléfono está disponible para registro.
+    
+    POST /api/v1/auth/check-phone/
+    Body: { "phone": "3001234567" }
+    
+    Returns:
+        200: { "available": true/false, "message": "..." }
+        400: Error de validación (formato inválido, longitud incorrecta)
+    
+    Validations:
+        - Solo dígitos numéricos
+        - Longitud entre 10 y 15 caracteres
+        - Unicidad en la base de datos
+    """
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [AnonRateThrottle]
+
+    def post(self, request):
+        phone = request.data.get('phone', '').strip()
+        
+        if not phone:
+            return Response(
+                {"available": False, "message": "El teléfono es requerido"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar que solo contenga dígitos
+        if not phone.isdigit():
+            return Response(
+                {"available": False, "message": "El teléfono solo debe contener números"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Validar longitud (10-15 dígitos)
+        if len(phone) < 10 or len(phone) > 15:
+            return Response(
+                {"available": False, "message": "El teléfono debe tener entre 10 y 15 dígitos"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verificar si existe (asumiendo que User tiene campo phone)
+        exists = User.objects.filter(phone=phone).exists()
+        
+        if exists:
+            return Response(
+                {"available": False, "message": "Este teléfono ya está registrado"},
+                status=status.HTTP_200_OK
+            )
+        
+        return Response(
+            {"available": True, "message": "Teléfono disponible"},
+            status=status.HTTP_200_OK
+        )
+
+
+class ObtainTokenPairView(APIView):
+    """
+    Autentica usuarios y devuelve tokens JWT.
+    
+    POST /api/v1/auth/token/
+    Body: { "email": "user@example.com", "password": "..." }
+    
+    Returns:
+        200: {
+            "access": "eyJ...",
+            "refresh": "eyJ...",
+            "user": {
+                "id": 1,
+                "email": "user@example.com",
+                "first_name": "John",
+                "last_name": "Doe",
+                "is_merchant": false,
+                "is_staff": false,
+                "role": "customer"
+            }
+        }
+        400: Credenciales inválidas
+        429: Demasiados intentos (throttling)
+    
+    Security:
+        - Throttling habilitado para prevenir ataques de fuerza bruta
+        - Los logs registran intentos de autenticación
+    """
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [AnonRateThrottle]
 
     def post(self, request, *args, **kwargs):
         serializer = CustomTokenObtainSerializer(data=request.data, context={'request': request})
@@ -77,8 +242,11 @@ class ObtainTokenPairView(APIView):
             "user": {
                 "id": user.id,
                 "email": user.email,
-                "full_name": getattr(user, "full_name", ""),
+                "first_name": getattr(user, "first_name", ""),
+                "last_name": getattr(user, "last_name", ""),
                 "is_merchant": getattr(user, "is_merchant", False),
+                "is_staff": getattr(user, "is_staff", False),
+                "role": "admin" if user.is_staff else ("merchant" if getattr(user, "is_merchant", False) else "customer"),
             }
         }
         logger.info("User logged in: %s (id=%s)", user.email, user.id)
@@ -86,22 +254,54 @@ class ObtainTokenPairView(APIView):
 
 
 class MeView(generics.RetrieveAPIView):
+    """
+    Obtiene y actualiza los datos del usuario autenticado.
+    
+    GET /api/v1/auth/me/
+    Returns: Datos del usuario actual
+    
+    PUT /api/v1/auth/me/
+    Body: { "first_name": "...", "last_name": "...", ... }
+    Returns: Datos actualizados del usuario
+    
+    Permissions:
+        - IsAuthenticated: Solo usuarios autenticados
+    """
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        """Obtiene los datos del usuario autenticado."""
         return Response(UserSerializer(request.user).data)
 
     def put(self, request):
+        """Actualiza parcialmente los datos del usuario autenticado."""
         serializer = UserSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+
 class PasswordResetRequestView(APIView):
     """
-    POST { "email": "<email>" }
-    Responde 200 siempre (evita user enumeration). Si existe el usuario se envía correo.
+    Solicita un enlace de restablecimiento de contraseña.
+    
+    POST /api/v1/auth/password-reset-request/
+    Body: { "email": "user@example.com" }
+    
+    Returns:
+        200: { "detail": "Si el correo existe, se enviaron instrucciones." }
+        
+    Security:
+        - Responde 200 siempre para evitar enumeración de usuarios
+        - Si el usuario existe, envía un email con token único válido por 1 hora
+        - El token solo puede usarse una vez
+        - Incluye throttling para prevenir spam
+    
+    Email Template:
+        - HTML responsive con botón de acción
+        - Fallback a texto plano si el template falla
+        - Incluye información de expiración y seguridad
     """
     permission_classes = [permissions.AllowAny]
     throttle_classes = [AnonRateThrottle]
@@ -132,10 +332,14 @@ class PasswordResetRequestView(APIView):
         html_message = None
         plain_message = (
             f"Hola,\n\nPara restablecer tu contraseña, ingresa al siguiente enlace:\n\n{reset_url}\n\n"
-            "Si no solicitaste esto, ignora este correo."
+            "Si no solicitaste esto, ignora este correo.\n\nSaludos,\nEquipo DomiPyme"
         )
         try:
-            context = {"user": user, "reset_url": reset_url}
+            context = {
+                "user": user,
+                "reset_url": reset_url,
+                "frontend_base": frontend_base
+            }
             html_message = render_to_string("accounts/password_reset_email.html", context)
         except Exception as e:
             logger.warning("Failed to render HTML email template: %s. Using plain text.", str(e))

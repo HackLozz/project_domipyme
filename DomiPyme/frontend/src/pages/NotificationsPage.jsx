@@ -6,6 +6,7 @@ import { showToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Button from '../components/Button';
+import './NotificationsPage.css';
 
 const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);

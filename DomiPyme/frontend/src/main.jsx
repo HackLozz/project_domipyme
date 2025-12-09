@@ -6,7 +6,16 @@ import App from './App';
 import { AuthProvider } from './context/AuthProvider';
 import { CartProvider } from './context/CartContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import './styles/colors.css';
 import './animations.css';
+
+// Configuración de React Router con flags de futuro para v7
+const routerConfig = {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+  },
+};
 
 const container = document.getElementById('root');
 
@@ -18,7 +27,7 @@ if (!container) {
   createRoot(container).render(
     <React.StrictMode>
       <ErrorBoundary>
-        <BrowserRouter>
+        <BrowserRouter future={routerConfig.future}>
           <AuthProvider>
             <CartProvider>
               <App />

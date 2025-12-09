@@ -4,18 +4,32 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthProvider";
 import NotificationBell from "./NotificationBell";
 import CartIcon from "./CartIcon";
+import "./Navbar.css";
 
+/**
+ * Navbar Component
+ * Barra de navegación responsive con menú móvil y dropdown de usuario
+ * @component
+ */
 export default function Navbar() {
   const nav = useNavigate();
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
-  // cerrar dropdown en click fuera
+  // Cerrar dropdown en click fuera
   useEffect(() => {
     const onDocClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setMenuOpen(false);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
+        const hamburger = document.querySelector('.navbar__hamburger');
+        if (hamburger && !hamburger.contains(e.target)) {
+          setMobileMenuOpen(false);
+        }
       }
     };
     document.addEventListener('click', onDocClick);
@@ -23,7 +37,6 @@ export default function Navbar() {
   }, []);
 
   const handleLogout = () => {
-    // llama al logout del contexto si existe
     if (typeof logout === "function") logout();
     else {
       localStorage.removeItem("access_token");
@@ -31,136 +44,141 @@ export default function Navbar() {
       localStorage.removeItem("user_data");
       nav("/login");
     }
+    setMobileMenuOpen(false);
   };
 
+  const closeMobileMenu = () => setMobileMenuOpen(false);
+
   return (
-    <nav style={styles.nav}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <img src="/assets/logo.svg" alt="DomiPyme" style={{ width: 28, height: 28, borderRadius: 6 }} />
-        <Link to="/" style={styles.brand}>DomiPyme</Link>
-      </div>
+    <nav className="navbar">
+      <div className="navbar__container">
+        {/* Brand */}
+        <div className="navbar__brand">
+          <img src="/assets/logo.svg" alt="DomiPyme" className="navbar__logo" />
+          <Link to="/" className="navbar__title">DomiPyme</Link>
+        </div>
 
-      <div style={styles.links}>
-        <Link to="/" style={styles.link}>Home</Link>
-        <Link to="/catalog" style={styles.link}>Catálogo</Link>
-        <Link to="/about" style={styles.link}>Acerca</Link>
+        {/* Desktop Links */}
+        <div className="navbar__links navbar__links--desktop">
+          <Link to="/" className="navbar__link">Home</Link>
+          <Link to="/catalog" className="navbar__link">Catálogo</Link>
+          <Link to="/about" className="navbar__link">Acerca</Link>
 
-        {!user && (
-          <>
-            <Link to="/login" style={styles.link}>Iniciar sesión</Link>
-            <Link to="/register" style={styles.link}>Registrarse</Link>
-          </>
-        )}
+          {!user && (
+            <>
+              <Link to="/login" className="navbar__link">Iniciar sesión</Link>
+              <Link to="/register" className="navbar__link navbar__link--primary">Registrarse</Link>
+            </>
+          )}
 
-        {user && (
-          <>
-            <CartIcon />
+          {user && (
+            <>
+              <CartIcon />
 
-            {user.role === 'admin' && <Link to="/admin" style={styles.link}>Panel Admin</Link>}
-            {user.role === 'merchant' && <Link to="/merchant" style={styles.link}>Panel Comercio</Link>}
-            {user.role === 'customer' && <Link to="/dashboard" style={styles.link}>Dashboard</Link>}
+              {user.role === 'admin' && <Link to="/admin" className="navbar__link">Panel Admin</Link>}
+              {user.role === 'merchant' && <Link to="/merchant" className="navbar__link">Panel Comercio</Link>}
+              {user.role === 'customer' && <Link to="/dashboard" className="navbar__link">Dashboard</Link>}
 
-            <NotificationBell />
+              <NotificationBell />
 
-            <div style={{ position: 'relative' }} ref={menuRef}>
-              <button style={styles.userBtn} onClick={() => setMenuOpen(v=>!v)} aria-haspopup="menu" aria-expanded={menuOpen}>
-                {user.first_name ? user.first_name.charAt(0).toUpperCase() : (user.email?.charAt(0).toUpperCase() || 'U')}
-              </button>
-              {menuOpen && (
-                <div style={styles.menu} role="menu">
-                  <div style={styles.menuHeader}>
-                    <div style={styles.avatarLarge}>{user.first_name ? user.first_name.charAt(0).toUpperCase() : (user.email?.charAt(0).toUpperCase() || 'U')}</div>
-                    <div>
-                      <div style={{ fontWeight: 800 }}>{user.first_name ? `${user.first_name} ${user.last_name||''}`.trim() : user.email}</div>
-                      <div style={{ color: '#6b7280', fontSize: 12 }}>{user.email}</div>
+              {/* User Menu */}
+              <div className="navbar__user-menu" ref={menuRef}>
+                <button 
+                  className="navbar__user-btn" 
+                  onClick={() => setMenuOpen(v=>!v)} 
+                  aria-haspopup="menu" 
+                  aria-expanded={menuOpen}
+                  aria-label="Menú de usuario"
+                >
+                  {user.first_name ? user.first_name.charAt(0).toUpperCase() : (user.email?.charAt(0).toUpperCase() || 'U')}
+                </button>
+                {menuOpen && (
+                  <div className="navbar__dropdown" role="menu">
+                    <div className="navbar__dropdown-header">
+                      <div className="navbar__avatar-large">
+                        {user.first_name ? user.first_name.charAt(0).toUpperCase() : (user.email?.charAt(0).toUpperCase() || 'U')}
+                      </div>
+                      <div>
+                        <div className="navbar__user-name">
+                          {user.first_name ? `${user.first_name} ${user.last_name||''}`.trim() : user.email}
+                        </div>
+                        <div className="navbar__user-email">{user.email}</div>
+                      </div>
                     </div>
+                    <Link to="/profile" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Mi Perfil</Link>
+                    <Link to="/orders" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Mis Órdenes</Link>
+                    <div className="navbar__divider" />
+                    {user.role === 'admin' && <Link to="/admin" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Panel Admin</Link>}
+                    {user.role === 'merchant' && <Link to="/merchant" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Panel Comercio</Link>}
+                    {user.role === 'customer' && <Link to="/dashboard" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Dashboard</Link>}
+                    <button onClick={handleLogout} className="navbar__dropdown-item navbar__dropdown-item--danger">
+                      Cerrar sesión
+                    </button>
                   </div>
-                  <Link to="/profile" style={styles.menuItem} onClick={()=>setMenuOpen(false)}>Mi Perfil</Link>
-                  <Link to="/orders" style={styles.menuItem} onClick={()=>setMenuOpen(false)}>Mis Órdenes</Link>
-                  <div style={styles.menuDivider} />
-                  {user.role === 'admin' && <Link to="/admin" style={styles.menuItem} onClick={()=>setMenuOpen(false)}>Panel Admin</Link>}
-                  {user.role === 'merchant' && <Link to="/merchant" style={styles.menuItem} onClick={()=>setMenuOpen(false)}>Panel Comercio</Link>}
-                  {user.role === 'customer' && <Link to="/dashboard" style={styles.menuItem} onClick={()=>setMenuOpen(false)}>Dashboard</Link>}
-                  <button onClick={handleLogout} style={{ ...styles.menuItem, ...styles.menuDanger }}>Cerrar sesión</button>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Mobile Hamburger */}
+        <button 
+          className="navbar__hamburger"
+          onClick={() => setMobileMenuOpen(v => !v)}
+          aria-label="Abrir menú móvil"
+          aria-expanded={mobileMenuOpen}
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
+
+      {/* Mobile Menu */}
+      {mobileMenuOpen && (
+        <div className="navbar__mobile-menu" ref={mobileMenuRef}>
+          <Link to="/" className="navbar__mobile-link" onClick={closeMobileMenu}>Home</Link>
+          <Link to="/catalog" className="navbar__mobile-link" onClick={closeMobileMenu}>Catálogo</Link>
+          <Link to="/about" className="navbar__mobile-link" onClick={closeMobileMenu}>Acerca</Link>
+
+          {!user && (
+            <>
+              <Link to="/login" className="navbar__mobile-link" onClick={closeMobileMenu}>Iniciar sesión</Link>
+              <Link to="/register" className="navbar__mobile-link navbar__mobile-link--primary" onClick={closeMobileMenu}>
+                Registrarse
+              </Link>
+            </>
+          )}
+
+          {user && (
+            <>
+              <div className="navbar__mobile-divider" />
+              <div className="navbar__mobile-user">
+                <div className="navbar__avatar-large">
+                  {user.first_name ? user.first_name.charAt(0).toUpperCase() : (user.email?.charAt(0).toUpperCase() || 'U')}
+                </div>
+                <div>
+                  <div className="navbar__user-name">
+                    {user.first_name ? `${user.first_name} ${user.last_name||''}`.trim() : user.email}
+                  </div>
+                  <div className="navbar__user-email">{user.email}</div>
+                </div>
+              </div>
+              <Link to="/profile" className="navbar__mobile-link" onClick={closeMobileMenu}>Mi Perfil</Link>
+              <Link to="/orders" className="navbar__mobile-link" onClick={closeMobileMenu}>Mis Órdenes</Link>
+              <Link to="/cart" className="navbar__mobile-link" onClick={closeMobileMenu}>Carrito</Link>
+              <Link to="/notifications" className="navbar__mobile-link" onClick={closeMobileMenu}>Notificaciones</Link>
+              {user.role === 'admin' && <Link to="/admin" className="navbar__mobile-link" onClick={closeMobileMenu}>Panel Admin</Link>}
+              {user.role === 'merchant' && <Link to="/merchant" className="navbar__mobile-link" onClick={closeMobileMenu}>Panel Comercio</Link>}
+              {user.role === 'customer' && <Link to="/dashboard" className="navbar__mobile-link" onClick={closeMobileMenu}>Dashboard</Link>}
+              <div className="navbar__mobile-divider" />
+              <button onClick={handleLogout} className="navbar__mobile-link navbar__mobile-link--danger">
+                Cerrar sesión
+              </button>
+            </>
+          )}
+        </div>
+      )}
     </nav>
   );
 }
-
-const styles = {
-  nav: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "14px 26px",
-    background: "#111827",
-    color: "white",
-    alignItems: "center",
-    boxShadow: "0 2px 12px rgba(0,0,0,0.25)",
-    position: "sticky",
-    top: 0,
-    zIndex: 999,
-  },
-  brand: {
-    color: "white",
-    textDecoration: "none",
-    fontWeight: "800",
-    fontSize: "1.3rem",
-    letterSpacing: "1px"
-  },
-  links: {
-    display: "flex",
-    gap: "16px",
-    alignItems: "center",
-  },
-  link: {
-    color: "white",
-    textDecoration: "none",
-    fontWeight: 600,
-    padding: "6px 10px",
-    borderRadius: "6px",
-    transition: "0.2s",
-  },
-  btn: {
-    background: "transparent",
-    color: "white",
-    border: "1px solid rgba(255,255,255,0.3)",
-    padding: "6px 10px",
-    borderRadius: "8px",
-    cursor: "pointer",
-  },
-  userBtn: {
-    background: '#fff',
-    color: '#111827',
-    border: '1px solid rgba(17,24,39,0.12)',
-    width: 34,
-    height: 34,
-    borderRadius: '50%',
-    fontWeight: 800,
-    cursor: 'pointer',
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
-  },
-  menu: {
-    position: 'absolute', right: 0, top: 'calc(100% + 8px)',
-    background: '#fff', border: '1px solid rgba(17,24,39,0.08)', borderRadius: 12,
-    boxShadow: '0 12px 34px rgba(2,6,23,0.14)', width: 240,
-    overflow: 'hidden', zIndex: 1000,
-  },
-  menuHeader: { display: 'flex', gap: 10, alignItems: 'center', padding: 12, borderBottom: '1px solid #eef1f5' },
-  avatarLarge: { width: 40, height: 40, borderRadius: '50%', background: '#111827', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800 },
-  menuItem: { display: 'block', padding: '10px 12px', textDecoration: 'none', color: '#111827', fontWeight: 700, textAlign: 'left', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer' },
-  menuDivider: { height: 1, background: '#eef1f5' },
-  menuDanger: { color: '#991b1b' },
-  badge: {
-    background: "#3b82f6",
-    padding: "2px 7px",
-    marginLeft: "6px",
-    borderRadius: "12px",
-    fontSize: "0.75rem",
-    fontWeight: "700",
-  },
-};

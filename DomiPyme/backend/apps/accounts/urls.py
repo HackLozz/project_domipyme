@@ -5,6 +5,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     RegisterView,
+    CheckEmailAvailabilityView,
+    CheckPhoneAvailabilityView,
     ObtainTokenPairView,
     MeView,
     PasswordResetRequestView,
@@ -23,6 +25,8 @@ router.register(r'notifications', NotificationViewSet, basename='notification')
 urlpatterns = [
     path('', include(router.urls)),
     path('register/', RegisterView.as_view(), name='register'),
+    path('check-email/', CheckEmailAvailabilityView.as_view(), name='check_email'),
+    path('check-phone/', CheckPhoneAvailabilityView.as_view(), name='check_phone'),
     path('token/', ObtainTokenPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/me/', MeView.as_view(), name='auth-me'),

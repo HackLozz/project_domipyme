@@ -35,10 +35,10 @@ const ReviewForm = ({ productId, existingReview = null, onSuccess, onCancel }) =
 
       if (existingReview) {
         // Actualizar reseña existente
-        await api.patch(`/api/reviews/${existingReview.id}/`, data);
+        await api.patch(`reviews/${existingReview.id}/`, data);
       } else {
         // Crear nueva reseña
-        await api.post('/api/reviews/', data);
+        await api.post('reviews/', data);
       }
 
       if (onSuccess) {

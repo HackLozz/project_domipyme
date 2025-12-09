@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import api from '../components/Api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthProvider';
+import './ShopCreate.css';
 
 const slugify = (v = '') =>
   v

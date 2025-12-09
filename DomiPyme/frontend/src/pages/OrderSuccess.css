@@ -1,0 +1,373 @@
+/* OrderSuccess.css - Página de confirmación de pedido con paleta navy/coral */
+
+/* ========== Variables ========== */
+:root {
+  --success-navy: #1e3a8a;
+  --success-blue: #3b82f6;
+  --success-coral: #fb7185;
+  --success-green: #10b981;
+  --success-text: #0f172a;
+  --success-text-muted: #64748b;
+}
+
+/* ========== Page wrapper ========== */
+.order-success-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #fb7185 100%);
+  padding: 60px 24px;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.order-success-container {
+  max-width: 650px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 64px 48px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(30, 58, 138, 0.2);
+  animation: slideIn 0.6s ease-out;
+}
+
+/* ========== Success icon ========== */
+.order-success-icon-wrapper {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 32px;
+  background: linear-gradient(135deg, var(--success-green), #34d399);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  animation: scaleIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+}
+
+.order-success-icon-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+  border: 3px dashed var(--success-green);
+  animation: rotate 20s linear infinite;
+  opacity: 0.3;
+}
+
+.order-success-icon {
+  font-size: 60px;
+  color: #ffffff;
+  animation: checkmark 0.8s ease-out 0.3s both;
+}
+
+/* ========== Title ========== */
+.order-success-title {
+  font-size: 36px;
+  font-weight: 900;
+  color: var(--success-text);
+  margin: 0 0 16px 0;
+  letter-spacing: -0.5px;
+  animation: slideIn 0.6s ease-out 0.2s both;
+}
+
+.order-success-subtitle {
+  font-size: 18px;
+  color: var(--success-text-muted);
+  line-height: 1.6;
+  margin: 0 0 32px 0;
+  animation: slideIn 0.6s ease-out 0.3s both;
+}
+
+/* ========== Order ID ========== */
+.order-success-order-id {
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.05), rgba(59, 130, 246, 0.05));
+  border: 2px dashed var(--success-blue);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 0 0 32px 0;
+  animation: slideIn 0.6s ease-out 0.4s both;
+}
+
+.order-success-order-label {
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--success-text-muted);
+  margin: 0 0 8px 0;
+}
+
+.order-success-order-number {
+  font-size: 32px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--success-navy), var(--success-blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+  letter-spacing: -0.5px;
+  font-family: 'Courier New', monospace;
+}
+
+/* ========== Info boxes ========== */
+.order-success-info {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin: 0 0 32px 0;
+  animation: slideIn 0.6s ease-out 0.5s both;
+}
+
+.order-success-info-box {
+  background: #f8fafc;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: left;
+}
+
+.order-success-info-icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--success-navy), var(--success-blue));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.order-success-info-text h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--success-text-muted);
+  margin: 0 0 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.order-success-info-text p {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--success-text);
+  margin: 0;
+}
+
+/* ========== Actions ========== */
+.order-success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: slideIn 0.6s ease-out 0.6s both;
+}
+
+.order-success-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 32px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.order-success-button-primary {
+  background: linear-gradient(135deg, var(--success-navy), var(--success-blue));
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(30, 58, 138, 0.3);
+}
+
+.order-success-button-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(30, 58, 138, 0.4);
+}
+
+.order-success-button-secondary {
+  background: transparent;
+  color: var(--success-blue);
+  border: 2px solid var(--success-blue);
+}
+
+.order-success-button-secondary:hover {
+  background: var(--success-blue);
+  color: #ffffff;
+}
+
+/* ========== Confetti animation ========== */
+.order-success-confetti {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.order-success-confetti-piece {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--success-coral);
+  top: -10px;
+  animation: confettiFall 3s linear forwards;
+  opacity: 0;
+}
+
+/* ========== Animations ========== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes checkmark {
+  0% {
+    transform: scale(0) rotate(-45deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(10deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes confettiFall {
+  to {
+    top: 100vh;
+    opacity: 1;
+    transform: translateX(calc(var(--x) * 100px)) rotate(calc(var(--r) * 360deg));
+  }
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+  .order-success-container {
+    padding: 48px 32px;
+    border-radius: 20px;
+  }
+
+  .order-success-icon-wrapper {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 24px;
+  }
+
+  .order-success-icon {
+    font-size: 50px;
+  }
+
+  .order-success-title {
+    font-size: 28px;
+  }
+
+  .order-success-subtitle {
+    font-size: 16px;
+    margin-bottom: 24px;
+  }
+
+  .order-success-order-id {
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .order-success-order-number {
+    font-size: 26px;
+  }
+
+  .order-success-info {
+    margin-bottom: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-success-page {
+    padding: 40px 16px;
+  }
+
+  .order-success-container {
+    padding: 32px 24px;
+  }
+
+  .order-success-icon-wrapper {
+    width: 80px;
+    height: 80px;
+  }
+
+  .order-success-icon {
+    font-size: 40px;
+  }
+
+  .order-success-title {
+    font-size: 24px;
+  }
+
+  .order-success-subtitle {
+    font-size: 15px;
+  }
+
+  .order-success-order-number {
+    font-size: 22px;
+  }
+
+  .order-success-info-box {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .order-success-info-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .order-success-button {
+    padding: 14px 24px;
+    font-size: 15px;
+  }
+}

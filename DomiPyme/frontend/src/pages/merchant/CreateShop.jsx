@@ -1,10 +1,12 @@
 // src/pages/merchant/CreateShop.jsx
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import api from "../../components/Api";
 import { useNavigate, Link } from "react-router-dom";
+import { showToast } from "../../components/Toast";
 
 export default function CreateShop() {
   const nav = useNavigate();
+  const fileInputRef = useRef(null);
   const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -13,20 +15,51 @@ export default function CreateShop() {
     city: "",
     phone: "",
   });
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoBase64, setLogoBase64] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [errors, setErrors] = useState({});
 
-  useState(() => {
+  useEffect(() => {
     const t = setTimeout(() => setMounted(true), 10);
     return () => clearTimeout(t);
   }, []);
+
+  const onLogoChange = (file) => {
+    setError(null);
+    if (!file) {
+      setLogoPreview(null);
+      setLogoBase64(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const max = 3 * 1024 * 1024;
+    if (file.size > max) {
+      showToast('El logo supera el tamaño máximo de 3 MB', 'error');
+      setError('El logo supera el tamaño máximo de 3 MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setLogoPreview(ev.target.result);
+      setLogoBase64(ev.target.result);
+    };
+    reader.onerror = () => {
+      showToast('No se pudo leer la imagen', 'error');
+      setError('No se pudo leer la imagen.');
+    };
+    reader.readAsDataURL(file);
+  };
 
   const validate = () => {
     const errs = {};
     if (!form.name || form.name.trim().length < 3) errs.name = "Nombre debe tener al menos 3 caracteres";
     if (!form.description || form.description.trim().length < 10) errs.description = "Descripción muy corta (mín. 10 caracteres)";
     if (!form.city || form.city.trim().length < 2) errs.city = "Ciudad requerida";
+    if (form.description && form.description.length > 500) errs.description = "Descripción muy larga (máx. 500 caracteres)";
     return errs;
   };
 
@@ -45,19 +78,37 @@ export default function CreateShop() {
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
+      showToast('Por favor corrige los errores en el formulario', 'error');
       return;
     }
 
     setLoading(true);
     try {
-      await api.post("shops/", form);
-      nav("/merchant");
+      const payload = {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        address: form.address.trim(),
+        city: form.city.trim(),
+        phone: form.phone.trim(),
+      };
+      
+      if (logoBase64) {
+        payload.image = logoBase64;
+      }
+
+      await api.post("shops/", payload);
+      showToast('¡Tienda creada exitosamente!', 'success', 3000);
+      
+      // Redirigir al panel del merchant después de 1.5 segundos
+      setTimeout(() => {
+        nav("/merchant");
+      }, 1500);
     } catch (err) {
       console.error("Create shop error:", err);
       const msg = err?.response?.data?.detail || err?.message || "Error creando tienda";
       setError(msg);
+      showToast(msg, 'error');
 
-      // Mapear errores de campo
       const respData = err?.response?.data;
       if (respData && typeof respData === 'object') {
         const fieldErrs = {};
@@ -79,10 +130,8 @@ export default function CreateShop() {
       <style>{`
         .page-enter { animation: pageEnter 320ms ease both; }
         @keyframes pageEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
         .input-field { transition: box-shadow 160ms ease, transform 140ms ease, border-color 140ms ease; }
         .input-field:focus { outline: none; box-shadow: 0 6px 18px rgba(17,24,39,0.06); transform: translateY(-1px); border-color: rgba(17,24,39,0.08); }
-
         .btn { transition: transform 160ms ease, box-shadow 160ms ease, opacity 140ms ease; }
         .btn:active { transform: translateY(1px) scale(0.997); }
       `}</style>
@@ -125,6 +174,7 @@ export default function CreateShop() {
               required
               rows={4}
             />
+            <small style={styles.hint}>{form.description.length}/500 caracteres</small>
             {errors.description && <div style={styles.fieldError}>{errors.description}</div>}
           </div>
 
@@ -169,6 +219,38 @@ export default function CreateShop() {
               className="input-field"
               disabled={loading}
             />
+          </div>
+
+          <div>
+            <label style={styles.label}>Logo de la tienda (opcional)</label>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <label style={styles.uploadLabel}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => onLogoChange(e.target.files?.[0] ?? null)}
+                  disabled={loading}
+                />
+                Subir logo
+              </label>
+              {logoPreview ? (
+                <img
+                  src={logoPreview}
+                  alt="preview"
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: 8,
+                    objectFit: 'cover',
+                    border: '1px solid #ddd',
+                  }}
+                />
+              ) : (
+                <div style={styles.noLogo}>Sin logo</div>
+              )}
+            </div>
           </div>
 
           <div style={styles.actions}>
@@ -246,6 +328,12 @@ const styles = {
     fontSize: 13,
     color: '#374151',
   },
+  hint: {
+    display: 'block',
+    marginTop: 4,
+    fontSize: 12,
+    color: '#6b7280',
+  },
   input: {
     width: '100%',
     padding: 10,
@@ -270,6 +358,26 @@ const styles = {
     color: '#ef4444',
     marginTop: 4,
     fontWeight: 600,
+  },
+  uploadLabel: {
+    padding: '8px 12px',
+    background: '#111827',
+    borderRadius: 8,
+    color: '#fff',
+    cursor: 'pointer',
+    fontWeight: 600,
+    fontSize: 13,
+  },
+  noLogo: {
+    width: 80,
+    height: 80,
+    background: '#f3f4f6',
+    borderRadius: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#6b7280',
+    fontSize: 12,
   },
   actions: {
     display: 'flex',

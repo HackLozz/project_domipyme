@@ -1,0 +1,490 @@
+/* Checkout.css - Responsive Checkout Page con Nueva Paleta */
+
+.checkout-page {
+  min-height: 100vh;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+.checkout-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.checkout-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.checkout-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 12px 0;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.checkout-progress {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  transition: all 0.3s;
+}
+
+.step-circle.active {
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.step-circle.completed {
+  background: #10b981;
+  color: white;
+}
+
+.step-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.step-label.active {
+  color: #1e3a8a;
+}
+
+.progress-divider {
+  width: 40px;
+  height: 2px;
+  background: #e2e8f0;
+}
+
+.progress-divider.completed {
+  background: #10b981;
+}
+
+.checkout-content {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+}
+
+.checkout-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.checkout-section {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(30, 58, 138, 0.08);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-number {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.edit-button {
+  padding: 8px 16px;
+  background: #f1f5f9;
+  color: #3b82f6;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-button:hover {
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.form-label-required::after {
+  content: ' *';
+  color: #ef4444;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  padding: 12px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  font-family: inherit;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.form-textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.payment-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.payment-method {
+  padding: 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.payment-method:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.payment-method.selected {
+  border-color: #3b82f6;
+  background: #dbeafe;
+}
+
+.payment-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.payment-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.checkout-sidebar {
+  position: sticky;
+  top: 20px;
+  align-self: flex-start;
+}
+
+.order-summary {
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(30, 58, 138, 0.08);
+}
+
+.summary-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 20px 0;
+}
+
+.summary-items {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.summary-item {
+  display: flex;
+  gap: 12px;
+}
+
+.item-image {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f1f5f9;
+}
+
+.item-details {
+  flex: 1;
+}
+
+.item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+}
+
+.item-quantity {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.item-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.summary-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 20px 0;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  font-size: 15px;
+}
+
+.summary-row.total {
+  border-top: 2px solid #e2e8f0;
+  padding-top: 16px;
+  margin-top: 12px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.summary-label {
+  color: #64748b;
+}
+
+.summary-value {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.place-order-button {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin-top: 20px;
+}
+
+.place-order-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+}
+
+.place-order-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.secure-checkout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.error-message {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: #dc2626;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .checkout-content {
+    grid-template-columns: 1fr;
+  }
+
+  .checkout-sidebar {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .checkout-page {
+    padding: 24px 16px;
+  }
+
+  .checkout-title {
+    font-size: 28px;
+  }
+
+  .checkout-progress {
+    gap: 8px;
+  }
+
+  .step-label {
+    display: none;
+  }
+
+  .progress-divider {
+    width: 24px;
+  }
+
+  .checkout-section {
+    padding: 20px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payment-methods {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .checkout-page {
+    padding: 20px 12px;
+  }
+
+  .checkout-title {
+    font-size: 24px;
+  }
+
+  .step-circle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .checkout-section {
+    padding: 16px;
+  }
+
+  .section-title {
+    font-size: 18px;
+  }
+
+  .order-summary {
+    padding: 20px;
+  }
+
+  .payment-methods {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Animaciones */
+.checkout-section {
+  animation: slideIn 0.4s ease both;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.checkout-section:nth-child(1) { animation-delay: 0.1s; }
+.checkout-section:nth-child(2) { animation-delay: 0.2s; }
+.checkout-section:nth-child(3) { animation-delay: 0.3s; }
+
+/* Accesibilidad */
+.form-input:focus-visible,
+.form-select:focus-visible,
+.form-textarea:focus-visible,
+.payment-method:focus-visible,
+.place-order-button:focus-visible,
+.edit-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}

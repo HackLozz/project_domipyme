@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthProvider';
 import api from '../components/Api';
 import { useNavigate } from 'react-router-dom';
+import './Profile.css';
 
 export default function Profile() {
   const { user, updateUser } = useAuth();

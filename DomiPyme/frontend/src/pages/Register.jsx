@@ -1,7 +1,9 @@
-// src/pages/Register.jsx
+// src/pages/Register.jsx - Formulario de registro mejorado con validaciones
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../components/Api';
+import { showToast } from '../components/Toast';
+import './Register.css';
 
 export default function Register() {
   const nav = useNavigate();
@@ -13,42 +15,129 @@ export default function Register() {
     passwordConfirm: '',
     first_name: '',
     last_name: '',
-    username: '',
     phone: '',
+    role: 'customer', // customer o merchant
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [pwdStrength, setPwdStrength] = useState(0);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [validating, setValidating] = useState({});
+  
+  // Estados de validación visual
+  const [fieldValid, setFieldValid] = useState({});
+  const [pwdRequirements, setPwdRequirements] = useState({
+    length: false,
+    uppercase: false,
+    lowercase: false,
+    number: false,
+  });
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 8);
     return () => clearTimeout(t);
   }, []);
-
-  // Autogenerar username si el usuario no lo edita (no cambia estilos)
+  
+  // Validación visual en tiempo real
   useEffect(() => {
-    if (!form.username) {
-      const namePart = (form.first_name || form.email || '').split(' ')[0] || '';
-      const generated = (namePart || (form.email || '').split('@')[0] || '')
-        .toLowerCase()
-        .replace(/[^\w\d_-]/g, '');
-      // solo actualizar si es distinto para evitar renders infinitos
-      if (generated && generated !== form.username) {
-        setForm((f) => ({ ...f, username: generated }));
-      }
+    const validations = {};
+    
+    // Email
+    if (form.email) {
+      validations.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) && !fieldErrors.email;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.first_name, form.email]);
+    
+    // Nombre
+    if (form.first_name) {
+      validations.first_name = form.first_name.trim().length >= 2 && /^[a-záéíóúñA-ZÁÉÍÓÚÑ\s]+$/.test(form.first_name.trim());
+    }
+    
+    // Apellido
+    if (form.last_name) {
+      validations.last_name = form.last_name.trim().length >= 2 && /^[a-záéíóúñA-ZÁÉÍÓÚÑ\s]+$/.test(form.last_name.trim());
+    }
+    
+    // Teléfono
+    if (form.phone) {
+      const cleanPhone = form.phone.replace(/[\s\-\(\)]/g, '');
+      validations.phone = /^[0-9]{10,15}$/.test(cleanPhone) && !fieldErrors.phone;
+    }
+    
+    // Confirmar contraseña
+    if (form.passwordConfirm && form.password) {
+      validations.passwordConfirm = form.password === form.passwordConfirm;
+    }
+    
+    setFieldValid(validations);
+  }, [form, fieldErrors]);
+  
+  // Validar requisitos de contraseña en tiempo real
+  useEffect(() => {
+    const pwd = form.password || '';
+    setPwdRequirements({
+      length: pwd.length >= 8,
+      uppercase: /[A-Z]/.test(pwd),
+      lowercase: /[a-z]/.test(pwd),
+      number: /[0-9]/.test(pwd),
+    });
+  }, [form.password]);
+
+  // Validación en tiempo real de email
+  const validateEmailAvailability = async (email) => {
+    if (!email || !email.includes('@')) return;
+    
+    setValidating(prev => ({ ...prev, email: true }));
+    try {
+      const response = await api.post('/auth/check-email/', { email });
+      if (!response.data.available) {
+        setFieldErrors(prev => ({ ...prev, email: response.data.message || 'Este email ya está registrado' }));
+      } else {
+        setFieldErrors(prev => {
+          const { email, ...rest } = prev;
+          return rest;
+        });
+      }
+    } catch (err) {
+      console.error('Error validando email:', err);
+    } finally {
+      setValidating(prev => ({ ...prev, email: false }));
+    }
+  };
+
+  // Validación en tiempo real de teléfono
+  const validatePhoneAvailability = async (phone) => {
+    if (!phone || phone.length < 10) return;
+    
+    setValidating(prev => ({ ...prev, phone: true }));
+    try {
+      const response = await api.post('/auth/check-phone/', { phone });
+      if (!response.data.available) {
+        setFieldErrors(prev => ({ ...prev, phone: response.data.message || 'Este teléfono ya está registrado' }));
+      } else {
+        setFieldErrors(prev => {
+          const { phone, ...rest } = prev;
+          return rest;
+        });
+      }
+    } catch (err) {
+      console.error('Error validando teléfono:', err);
+    } finally {
+      setValidating(prev => ({ ...prev, phone: false }));
+    }
+  };
 
   const onChange = (e) => {
-    // normalizar nombre de campo (backend usa first_name, last_name, email, password)
     const { name, value } = e.target;
-    setFieldErrors((prev) => ({ ...prev, [name]: undefined })); // borrar error de campo específico
+    setFieldErrors((prev) => {
+      const { [name]: _, ...rest } = prev;
+      return rest;
+    });
     setError(null);
     setForm((prev) => ({ ...prev, [name]: value }));
 
+    // Calcular fuerza de contraseña
     if (name === 'password') {
       const v = value || '';
       let score = 0;
@@ -61,17 +150,73 @@ export default function Register() {
     }
   };
 
+  // Validación al perder foco (blur)
+  const onBlur = (e) => {
+    const { name, value } = e.target;
+    
+    if (name === 'email' && value.trim()) {
+      validateEmailAvailability(value.trim());
+    }
+    
+    if (name === 'phone' && value.trim()) {
+      validatePhoneAvailability(value.trim());
+    }
+  };
+
   const validate = () => {
     const errors = {};
     const email = (form.email || '').trim();
     const pwd = form.password || '';
     const pwdConfirm = form.passwordConfirm || '';
+    const phone = (form.phone || '').trim();
 
-    if (!email || !email.includes('@')) errors.email = 'Email inválido';
-    if (!pwd || pwd.length < 8) errors.password = 'La contraseña debe tener al menos 8 caracteres';
-    if (pwd !== pwdConfirm) errors.passwordConfirm = 'Las contraseñas no coinciden';
-    if (!form.first_name || form.first_name.trim().length < 2) errors.first_name = 'Nombre muy corto';
-    if (!form.last_name || form.last_name.trim().length < 2) errors.last_name = 'Apellido muy corto';
+    // Validación de email
+    if (!email) {
+      errors.email = 'El email es requerido';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Email inválido';
+    }
+
+    // Validación de contraseña
+    if (!pwd) {
+      errors.password = 'La contraseña es requerida';
+    } else if (pwd.length < 8) {
+      errors.password = 'La contraseña debe tener al menos 8 caracteres';
+    } else if (!/[A-Z]/.test(pwd)) {
+      errors.password = 'La contraseña debe contener al menos una mayúscula';
+    } else if (!/[a-z]/.test(pwd)) {
+      errors.password = 'La contraseña debe contener al menos una minúscula';
+    } else if (!/[0-9]/.test(pwd)) {
+      errors.password = 'La contraseña debe contener al menos un número';
+    }
+
+    // Validación de confirmación de contraseña
+    if (!pwdConfirm) {
+      errors.passwordConfirm = 'Confirma tu contraseña';
+    } else if (pwd !== pwdConfirm) {
+      errors.passwordConfirm = 'Las contraseñas no coinciden';
+    }
+
+    // Validación de nombre
+    if (!form.first_name || form.first_name.trim().length < 2) {
+      errors.first_name = 'El nombre debe tener al menos 2 caracteres';
+    } else if (!/^[a-záéíóúñA-ZÁÉÍÓÚÑ\s]+$/.test(form.first_name.trim())) {
+      errors.first_name = 'El nombre solo puede contener letras';
+    }
+
+    // Validación de apellido
+    if (!form.last_name || form.last_name.trim().length < 2) {
+      errors.last_name = 'El apellido debe tener al menos 2 caracteres';
+    } else if (!/^[a-záéíóúñA-ZÁÉÍÓÚÑ\s]+$/.test(form.last_name.trim())) {
+      errors.last_name = 'El apellido solo puede contener letras';
+    }
+
+    // Validación de teléfono
+    if (!phone) {
+      errors.phone = 'El teléfono es requerido';
+    } else if (!/^[0-9]{10,15}$/.test(phone.replace(/[\s\-\(\)]/g, ''))) {
+      errors.phone = 'Teléfono inválido (10-15 dígitos)';
+    }
 
     return errors;
   };
@@ -80,92 +225,104 @@ export default function Register() {
     e.preventDefault();
     setError(null);
     setFieldErrors({});
+    
+    // Validar formulario
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
-      // foco en primer error visible
       const firstKey = Object.keys(errs)[0];
       const el = document.querySelector(`[name="${firstKey}"]`);
       if (el) el.focus();
+      showToast('Por favor corrige los errores del formulario', 'error');
       return;
     }
 
     setLoading(true);
     try {
-      // Payload mínimo que backend espera (evitamos enviar campos no soportados)
+      // Payload con todos los datos incluyendo rol y teléfono
       const payload = {
         email: form.email.trim(),
         password: form.password,
         first_name: form.first_name.trim(),
         last_name: form.last_name.trim(),
+        phone: form.phone.trim(),
+        role: form.role,
       };
 
       // POST al endpoint de registro
-      const resp = await api.post('auth/register/', payload);
+      const resp = await api.post('/auth/register/', payload);
 
-      // Si respuesta ok (201/200) redirigimos al login
-      // Comportamiento: redirigir sólo si la respuesta es exitosa
       if (resp && (resp.status === 201 || resp.status === 200)) {
-        nav('/login', { replace: true });
+        showToast('¡Registro exitoso! Ahora puedes iniciar sesión', 'success', 4000);
+        setTimeout(() => {
+          nav('/login', { replace: true });
+        }, 1500);
       } else {
-        // fallback: si servidor devolvió algo inesperado, mostrar mensaje genérico
-        setError('Registro completado (respuesta inesperada). Por favor inicia sesión.');
+        showToast('Registro completado. Por favor inicia sesión', 'info');
+        setTimeout(() => nav('/login'), 1500);
       }
     } catch (err) {
       console.error('Register error:', err);
       const resp = err?.response?.data;
 
-      // Manejo robusto de errores DRF
+      let errorMessage = 'Error al registrar. Por favor intenta nuevamente';
+
       if (resp) {
-        // Caso: resp es object con campos -> mapear a fieldErrors
         if (typeof resp === 'object' && !Array.isArray(resp)) {
           const fl = {};
-          // drf puede retornar 'non_field_errors' o 'detail'
+          
+          // Procesar errores del backend
           if (resp.detail) {
-            setError(String(resp.detail));
+            errorMessage = String(resp.detail);
+            setError(errorMessage);
           }
+
           for (const k of Object.keys(resp)) {
             const v = resp[k];
-            // normalizar a string
             if (Array.isArray(v)) {
               fl[k] = v.join(' ');
             } else if (typeof v === 'object' && v !== null) {
-              // por si vienen dicts anidados
               fl[k] = JSON.stringify(v);
             } else {
               fl[k] = String(v);
             }
           }
 
-          // Mapear claves de backend a nombres de campos del formulario si es necesario
+          // Mapear errores a campos del formulario
           const mapped = {};
           for (const key of Object.keys(fl)) {
-            // ejemplos: email -> email, non_field_errors -> error general, password -> password
             if (key === 'non_field_errors') {
+              errorMessage = fl[key];
               setError(fl[key]);
+            } else if (key === 'email' && fl[key].includes('already exists')) {
+              mapped[key] = 'Este email ya está registrado';
+            } else if (key === 'phone' && fl[key].includes('already exists')) {
+              mapped[key] = 'Este teléfono ya está registrado';
             } else {
               mapped[key] = fl[key];
             }
           }
 
-          // Actualizar errores por campo y mensaje general si no hay detail
-          if (!error && Object.keys(mapped).length > 0) {
-            // si hay errores de email/pwd mostrarlos en UI
-            setFieldErrors((prev) => ({ ...prev, ...mapped }));
-            if (!error) {
-              const first = Object.values(mapped)[0];
-              setError(String(first));
+          if (Object.keys(mapped).length > 0) {
+            setFieldErrors(mapped);
+            if (!resp.detail) {
+              errorMessage = Object.values(mapped)[0];
             }
           }
         } else if (Array.isArray(resp)) {
-          // array de errores -> mostrar el primero
-          setError(String(resp[0] || 'Error en el registro'));
+          errorMessage = String(resp[0] || errorMessage);
+          setError(errorMessage);
         } else {
-          setError(String(resp));
+          errorMessage = String(resp);
+          setError(errorMessage);
         }
       } else {
-        setError(err?.message || 'Error en el registro');
+        errorMessage = err?.message || errorMessage;
+        setError(errorMessage);
       }
+
+      // Mostrar toast con el error
+      showToast(errorMessage, 'error', 5000);
     } finally {
       setLoading(false);
     }
@@ -190,124 +347,270 @@ export default function Register() {
           <p style={{ marginTop: 0, color: '#6b7280' }}>Regístrate para gestionar tiendas, productos y pedidos.</p>
 
           <form onSubmit={submit} style={styles.form} noValidate>
+            {/* Selector de Tipo de Cuenta */}
+            <div style={styles.field}>
+              <label style={styles.label}>Tipo de Cuenta *</label>
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <label style={{
+                  ...styles.roleOption,
+                  ...(form.role === 'customer' ? styles.roleOptionActive : {})
+                }}>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="customer"
+                    checked={form.role === 'customer'}
+                    onChange={onChange}
+                    disabled={loading}
+                    style={{ marginRight: 8 }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>Cliente</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Comprar productos</div>
+                  </div>
+                </label>
+
+                <label style={{
+                  ...styles.roleOption,
+                  ...(form.role === 'merchant' ? styles.roleOptionActive : {})
+                }}>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="merchant"
+                    checked={form.role === 'merchant'}
+                    onChange={onChange}
+                    disabled={loading}
+                    style={{ marginRight: 8 }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>Comerciante</div>
+                    <div style={{ fontSize: 12, color: '#6b7280' }}>Vender productos y gestionar tienda</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {/* Nombre y Apellido */}
             <div style={styles.twoCols}>
               <div style={styles.field}>
-                <label style={styles.label}>Nombre</label>
+                <label style={styles.label}>
+                  Nombre *
+                  {fieldValid.first_name && <span className="validation-success"> ✓</span>}
+                </label>
                 <input
                   name="first_name"
                   value={form.first_name}
                   onChange={onChange}
                   style={styles.input}
-                  className="input-field"
+                  className={`input-field ${fieldErrors.first_name ? 'form-input-error' : fieldValid.first_name ? 'form-input-success' : ''}`}
                   disabled={loading}
+                  placeholder="Juan"
+                  required
+                  aria-invalid={!!fieldErrors.first_name}
+                  aria-describedby={fieldErrors.first_name ? 'first_name-error' : undefined}
                 />
-                {fieldErrors.first_name && <small style={styles.errField}>{fieldErrors.first_name}</small>}
+                {fieldErrors.first_name && (
+                  <small className="field-error" id="first_name-error" role="alert">
+                    ⚠️ {fieldErrors.first_name}
+                  </small>
+                )}
               </div>
 
               <div style={styles.field}>
-                <label style={styles.label}>Apellido</label>
+                <label style={styles.label}>
+                  Apellido *
+                  {fieldValid.last_name && <span className="validation-success"> ✓</span>}
+                </label>
                 <input
                   name="last_name"
                   value={form.last_name}
                   onChange={onChange}
                   style={styles.input}
-                  className="input-field"
+                  className={`input-field ${fieldErrors.last_name ? 'form-input-error' : fieldValid.last_name ? 'form-input-success' : ''}`}
                   disabled={loading}
+                  placeholder="Pérez"
+                  required
+                  aria-invalid={!!fieldErrors.last_name}
+                  aria-describedby={fieldErrors.last_name ? 'last_name-error' : undefined}
                 />
-                {fieldErrors.last_name && <small style={styles.errField}>{fieldErrors.last_name}</small>}
+                {fieldErrors.last_name && (
+                  <small className="field-error" id="last_name-error" role="alert">
+                    ⚠️ {fieldErrors.last_name}
+                  </small>
+                )}
               </div>
             </div>
 
+            {/* Email con validación en tiempo real */}
             <div style={styles.field}>
-              <label style={styles.label}>Usuario (opcional)</label>
-              <input
-                name="username"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                style={styles.input}
-                className="input-field"
-                disabled={loading}
-                aria-describedby="username-hint"
-              />
-              <small id="username-hint" style={styles.hint}>Se usará en tu URL pública (puedes cambiarlo luego).</small>
-              {fieldErrors.username && <small style={styles.errField}>{fieldErrors.username}</small>}
+              <label style={styles.label}>
+                Email *
+                {fieldValid.email && <span className="validation-success"> ✓</span>}
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  name="email"
+                  type="email"
+                  value={form.email}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  style={styles.input}
+                  className={`input-field ${fieldErrors.email ? 'form-input-error' : fieldValid.email ? 'form-input-success' : ''}`}
+                  disabled={loading}
+                  placeholder="tu@email.com"
+                  required
+                  aria-invalid={!!fieldErrors.email}
+                  aria-describedby={fieldErrors.email ? 'email-error' : undefined}
+                />
+                {validating.email && (
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 18 }}>
+                    ⏳
+                  </span>
+                )}
+              </div>
+              {fieldErrors.email && (
+                <small className="field-error" id="email-error" role="alert">
+                  ⚠️ {fieldErrors.email}
+                </small>
+              )}
             </div>
 
+            {/* Teléfono con validación en tiempo real */}
             <div style={styles.field}>
-              <label style={styles.label}>Email</label>
-              <input
-                name="email"
-                type="email"
-                value={form.email}
-                onChange={onChange}
-                style={styles.input}
-                className="input-field"
-                disabled={loading}
-                required
-              />
-              {fieldErrors.email && <small style={styles.errField}>{fieldErrors.email}</small>}
+              <label style={styles.label}>
+                Teléfono *
+                {fieldValid.phone && <span className="validation-success"> ✓</span>}
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  name="phone"
+                  type="tel"
+                  value={form.phone}
+                  onChange={onChange}
+                  onBlur={onBlur}
+                  style={styles.input}
+                  className={`input-field ${fieldErrors.phone ? 'form-input-error' : fieldValid.phone ? 'form-input-success' : ''}`}
+                  disabled={loading}
+                  placeholder="3001234567"
+                  required
+                  aria-invalid={!!fieldErrors.phone}
+                  aria-describedby={fieldErrors.phone ? 'phone-error' : undefined}
+                />
+                {validating.phone && (
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 18 }}>
+                    ⏳
+                  </span>
+                )}
+              </div>
+              <small style={styles.hint}>10-15 dígitos, sin espacios ni guiones</small>
+              {fieldErrors.phone && (
+                <small className="field-error" id="phone-error" role="alert">
+                  ⚠️ {fieldErrors.phone}
+                </small>
+              )}
             </div>
 
+            {/* Contraseña con checklist de requisitos */}
             <div style={styles.field}>
-              <label style={styles.label}>Teléfono</label>
-              <input
-                name="phone"
-                value={form.phone}
-                onChange={onChange}
-                style={styles.input}
-                className="input-field"
-                disabled={loading}
-              />
-              {fieldErrors.phone && <small style={styles.errField}>{fieldErrors.phone}</small>}
-            </div>
-
-            <div style={styles.twoCols}>
-              <div style={styles.field}>
-                <label style={styles.label}>Contraseña</label>
+              <label style={styles.label}>Contraseña *</label>
+              <div style={{ position: 'relative' }}>
                 <input
                   name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={onChange}
                   style={styles.input}
-                  className="input-field"
+                  className={`input-field ${fieldErrors.password ? 'form-input-error' : ''}`}
                   disabled={loading}
-                  minLength={8}
+                  placeholder="Mínimo 8 caracteres"
                   required
+                  aria-invalid={!!fieldErrors.password}
+                  aria-describedby="password-requirements"
                 />
-                <div style={{ marginTop: 6 }}>
-                  <div style={{ height: 8, borderRadius: 6, background: '#eef2f7', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${(pwdStrength/5)*100}%`, background: pwdStrength>=4? '#10b981' : (pwdStrength>=3? '#f59e0b':'#ef4444') }} />
-                  </div>
-                  <small style={styles.hint}>{pwdStrength>=4? 'Fuerte' : pwdStrength>=3? 'Media' : 'Débil'}</small>
-                </div>
-                {fieldErrors.password && <small style={styles.errField}>{fieldErrors.password}</small>}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(p => !p)}
+                  style={styles.toggleBtn}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPassword ? '🙈' : '👁️'}
+                </button>
               </div>
+              
+              {/* Checklist de requisitos */}
+              {form.password && (
+                <div className="password-requirements" id="password-requirements" style={{ marginTop: 8 }}>
+                  <div style={styles.strengthBar}>
+                    <div
+                      className={`password-strength-fill ${pwdStrength <= 1 ? 'weak' : pwdStrength <= 2 ? 'medium' : 'strong'}`}
+                      style={{
+                        width: `${(pwdStrength / 4) * 100}%`,
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 6, fontSize: 12 }}>
+                    <div style={{ color: pwdRequirements.length ? '#10b981' : '#6b7280' }}>
+                      {pwdRequirements.length ? '✓' : '○'} Mínimo 8 caracteres
+                    </div>
+                    <div style={{ color: pwdRequirements.uppercase ? '#10b981' : '#6b7280' }}>
+                      {pwdRequirements.uppercase ? '✓' : '○'} Una mayúscula
+                    </div>
+                    <div style={{ color: pwdRequirements.lowercase ? '#10b981' : '#6b7280' }}>
+                      {pwdRequirements.lowercase ? '✓' : '○'} Una minúscula
+                    </div>
+                    <div style={{ color: pwdRequirements.number ? '#10b981' : '#6b7280' }}>
+                      {pwdRequirements.number ? '✓' : '○'} Un número
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {fieldErrors.password && (
+                <small className="field-error" role="alert">
+                  ⚠️ {fieldErrors.password}
+                </small>
+              )}
+            </div>
 
-              <div style={styles.field}>
-                <label style={styles.label}>Confirmar contraseña</label>
+            {/* Confirmar Contraseña con toggle de visibilidad */}
+            <div style={styles.field}>
+              <label style={styles.label}>
+                Confirmar Contraseña *
+                {fieldValid.passwordConfirm && <span className="validation-success"> ✓</span>}
+              </label>
+              <div style={{ position: 'relative' }}>
                 <input
                   name="passwordConfirm"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPasswordConfirm ? 'text' : 'password'}
                   value={form.passwordConfirm}
                   onChange={onChange}
                   style={styles.input}
-                  className="input-field"
+                  className={`input-field ${fieldErrors.passwordConfirm ? 'form-input-error' : fieldValid.passwordConfirm ? 'form-input-success' : ''}`}
                   disabled={loading}
-                  minLength={8}
+                  placeholder="Repite tu contraseña"
                   required
+                  aria-invalid={!!fieldErrors.passwordConfirm}
+                  aria-describedby={fieldErrors.passwordConfirm ? 'passwordConfirm-error' : undefined}
                 />
-                {fieldErrors.passwordConfirm && <small style={styles.errField}>{fieldErrors.passwordConfirm}</small>}
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordConfirm(p => !p)}
+                  style={styles.toggleBtn}
+                  aria-label={showPasswordConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                >
+                  {showPasswordConfirm ? '🙈' : '👁️'}
+                </button>
               </div>
+              {fieldErrors.passwordConfirm && (
+                <small className="field-error" id="passwordConfirm-error" role="alert">
+                  ⚠️ {fieldErrors.passwordConfirm}
+                </small>
+              )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                <input type="checkbox" checked={showPassword} onChange={() => setShowPassword((s) => !s)} disabled={loading} />
-                Mostrar contraseña
-              </label>
-
-              <small style={styles.hint}>Al registrarte aceptas los términos.</small>
+            <div style={{ marginTop: 8 }}>
+              <small style={styles.hint}>Al registrarte aceptas nuestros términos y condiciones.</small>
             </div>
 
             {error && <div role="alert" style={styles.errorBox}>{error}</div>}
@@ -320,8 +623,11 @@ export default function Register() {
                 style={{
                   ...styles.button,
                   opacity: loading ? 0.85 : 1,
+                  cursor: loading ? 'not-allowed' : 'pointer',
                 }}
+                aria-busy={loading}
               >
+                {loading && <span className="spinner-small" />}
                 {loading ? 'Registrando...' : 'Crear cuenta'}
               </button>
 
@@ -356,4 +662,47 @@ const styles = {
   link: { color: '#111827', textDecoration: 'none', fontWeight: 700 },
   errorBox: { marginTop: 8, color: '#b91c1c', background: '#fff1f2', padding: 10, borderRadius: 8 },
   errField: { color: '#b91c1c', fontSize: 12 },
+  
+  // Estilos para selector de rol
+  roleOption: {
+    flex: 1,
+    padding: 12,
+    border: '2px solid #e5e7eb',
+    borderRadius: 8,
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  roleOptionActive: {
+    borderColor: '#10b981',
+    backgroundColor: '#f0fdf4',
+  },
+  
+  // Estilos para toggle de contraseña
+  toggleBtn: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 18,
+    padding: 4,
+  },
+  
+  // Estilos para barra de fortaleza de contraseña
+  strengthBar: {
+    height: 6,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  strengthFill: {
+    height: '100%',
+    borderRadius: 3,
+    transition: 'width 0.3s, background-color 0.3s',
+  },
 };

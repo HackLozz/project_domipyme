@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthProvider';
 import api from '../components/Api';
 import { Link } from 'react-router-dom';
+import './CustomerDashboard.css';
 
 const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(Number(n || 0));
 
@@ -46,7 +47,15 @@ export default function CustomerDashboard() {
   }, [user]);
 
   if (!user) {
-    return <div style={{ padding: 20 }}>Necesitas iniciar sesión para ver el dashboard.</div>;
+    return (
+      <div className="customer-dashboard-page">
+        <div className="customer-dashboard-container">
+          <div className="customer-dashboard-error">
+            <p>Necesitas iniciar sesión para ver el dashboard.</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const recentOrders = orders.slice(0, 5);
@@ -55,53 +64,51 @@ export default function CustomerDashboard() {
   const lastOrderDate = orders.length ? (orders[0].created_at || null) : null;
 
   return (
-    <div style={styles.container} className={mounted ? 'page-enter' : ''}>
-      <style>{`
-        .page-enter { animation: pageEnter 320ms ease both; }
-        @keyframes pageEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-        .card-hover { transition: transform 180ms ease, box-shadow 180ms ease; }
-        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(2,6,23,0.08); }
-
-        .skeleton { background: linear-gradient(90deg,#f3f4f6 0%, #efefef 50%, #f3f4f6 100%); background-size: 200% 100%; animation: shimmer 1200ms linear infinite; border-radius: 6px; }
-        @keyframes shimmer { from { background-position: 200% 0 } to { background-position: -200% 0 } }
-      `}</style>
-
-      <div style={styles.header}>
-        <div>
-          <h2 style={styles.h2}>Hola, {user.first_name || user.email} 👋</h2>
-          <p style={styles.subtitle}>Bienvenido a tu panel personal</p>
-        </div>
-      </div>
-
-      <div style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>📦</div>
-          <div style={styles.statValue}>{orders.length}</div>
-          <div style={styles.statLabel}>Pedidos totales</div>
-        </div>
-
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>💰</div>
-          <div style={styles.statValue}>{fmt(totalSpent)}</div>
-          <div style={styles.statLabel}>Total gastado</div>
-        </div>
-
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>✓</div>
-          <div style={styles.statValue}>{deliveredCount}</div>
-          <div style={styles.statLabel}>Completados</div>
-        </div>
-        {lastOrderDate && (
-          <div style={styles.statCard}>
-            <div style={styles.statIcon}>🕒</div>
-            <div style={styles.statValue}>{new Date(lastOrderDate).toLocaleDateString('es-CO')}</div>
-            <div style={styles.statLabel}>Último pedido</div>
+    <div className="customer-dashboard-page">
+      <div className="customer-dashboard-container">
+        <div className="customer-dashboard-header">
+          <div className="customer-dashboard-welcome">
+            <div className="customer-dashboard-avatar">
+              {(user.first_name?.[0] || user.email?.[0] || '👤').toUpperCase()}
+            </div>
+            <div className="customer-dashboard-welcome-text">
+              <h1>Hola, {user.first_name || user.email} 👋</h1>
+              <p>Bienvenido a tu panel personal</p>
+            </div>
           </div>
-        )}
-      </div>
 
-      <div style={styles.grid}>
+          <div className="customer-dashboard-stats">
+            <div className="customer-dashboard-stat-card">
+              <div className="customer-dashboard-stat-icon">📦</div>
+              <p className="customer-dashboard-stat-label">Pedidos totales</p>
+              <h3 className="customer-dashboard-stat-value">{orders.length}</h3>
+            </div>
+
+            <div className="customer-dashboard-stat-card">
+              <div className="customer-dashboard-stat-icon">💰</div>
+              <p className="customer-dashboard-stat-label">Total gastado</p>
+              <h3 className="customer-dashboard-stat-value">{fmt(totalSpent)}</h3>
+            </div>
+
+            <div className="customer-dashboard-stat-card">
+              <div className="customer-dashboard-stat-icon">✓</div>
+              <p className="customer-dashboard-stat-label">Completados</p>
+              <h3 className="customer-dashboard-stat-value">{deliveredCount}</h3>
+            </div>
+
+            {lastOrderDate && (
+              <div className="customer-dashboard-stat-card">
+                <div className="customer-dashboard-stat-icon">🕒</div>
+                <p className="customer-dashboard-stat-label">Último pedido</p>
+                <h3 className="customer-dashboard-stat-value">
+                  {new Date(lastOrderDate).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+                </h3>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="customer-dashboard-section">
         <div style={styles.mainColumn}>
           <div style={styles.card}>
             <div style={styles.cardHeader}>
@@ -207,6 +214,7 @@ export default function CustomerDashboard() {
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

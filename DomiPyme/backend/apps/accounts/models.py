@@ -80,6 +80,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(_("email address"), unique=True, db_index=True)
     first_name = models.CharField(_("first name"), max_length=150, blank=True)
     last_name = models.CharField(_("last name"), max_length=150, blank=True)
+    phone = models.CharField(_("phone number"), max_length=15, blank=True, null=True, unique=True)
     is_active = models.BooleanField(_("active"), default=True)
     is_staff = models.BooleanField(_("staff status"), default=False)
     # Nuevo campo para distinguir merchants (tiendas)

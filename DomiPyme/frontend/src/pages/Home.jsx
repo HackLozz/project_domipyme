@@ -2,7 +2,13 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../components/Api";
+import "./Home.css";
 
+/**
+ * Home Component
+ * Página principal con tiendas destacadas, productos recientes y CTA
+ * @component
+ */
 export default function Home() {
   const [shops, setShops] = useState([]);
   const [products, setProducts] = useState([]);
@@ -78,24 +84,26 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div style={styles.container}>
-        <div style={styles.hero}>
-          <h1 style={styles.title}>DomiPyme</h1>
-          <p style={styles.subtitle}>Apoya negocios locales — descubre tiendas y productos cerca de ti.</p>
+      <div className="home">
+        <div className="home__hero">
+          <div className="home__hero-content">
+            <h1>DomiPyme</h1>
+            <p>Apoya negocios locales — descubre tiendas y productos cerca de ti.</p>
+          </div>
         </div>
 
-        <section style={{ maxWidth: 1100, margin: "18px auto" }}>
+        <section className="home__section">
           <h3>Tiendas destacadas</h3>
-          <div style={{ display: "flex", gap: 12, marginTop: 12 }}>
+          <div className="home__skeleton-grid">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={styles.skelCard} />
+              <div key={i} className="home__skeleton-card" />
             ))}
           </div>
 
-          <h3 style={{ marginTop: 20 }}>Productos</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+          <h3 style={{ marginTop: 32 }}>Productos</h3>
+          <div className="home__skeleton-grid">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} style={styles.productSkel} />
+              <div key={i} className="home__skeleton-card" />
             ))}
           </div>
         </section>
@@ -105,112 +113,117 @@ export default function Home() {
 
   if (err) {
     return (
-      <div style={styles.container}>
-        <div style={styles.errBox}>{err}</div>
+      <div className="home">
+        <div className="home__error">{err}</div>
       </div>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.hero}>
-        <div>
-          <h1 style={styles.title}>DomiPyme</h1>
-          <p style={styles.subtitle}>Apoya negocios locales — descubre tiendas y productos cerca de ti.</p>
-          <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
-            <Link to="/catalog" style={styles.primaryBtn}>Explorar tiendas</Link>
-            <Link to="/about" style={styles.secondaryBtn}>Cómo funciona</Link>
+    <div className="home">
+      {/* Hero Section */}
+      <div className="home__hero">
+        <div className="home__hero-content">
+          <h1>DomiPyme</h1>
+          <p>Apoya negocios locales — descubre tiendas y productos cerca de ti.</p>
+          <div className="home__hero-actions">
+            <Link to="/catalog" className="home__btn-primary">Explorar tiendas</Link>
+            <Link to="/about" className="home__btn-secondary">Cómo funciona</Link>
           </div>
         </div>
-        <div style={{ width: 220 }}>{heroMiniSVG}</div>
+        <div className="home__hero-visual">{heroMiniSVG}</div>
       </div>
 
-      <section style={{ maxWidth: 1100, margin: "18px auto" }}>
+      {/* Featured Shops */}
+      <section className="home__section">
         <h3>Tiendas destacadas</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12, marginTop: 12 }}>
+        <div className="home__shops-grid">
           {shops && shops.length > 0 ? (
             shops.slice(0, 8).map((s) => (
-              <Link key={s.id} to={`/shop/${encodeURIComponent(s.slug || s.id)}`} style={styles.shopCard}>
-                <div style={{ fontWeight: 800 }}>{s.name}</div>
-                <div style={{ color: "#6b7280", fontSize: 13 }}>{s.description}</div>
+              <Link key={s.id} to={`/shop/${encodeURIComponent(s.slug || s.id)}`} className="home__shop-card">
+                <div className="home__shop-name">{s.name}</div>
+                <div className="home__shop-description">{s.description}</div>
               </Link>
             ))
           ) : (
-            <div style={{ color: "#6b7280" }}>No hay tiendas disponibles.</div>
+            <div className="home__empty">No hay tiendas disponibles.</div>
           )}
         </div>
 
-        <h3 style={{ marginTop: 20 }}>Productos recientes</h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12, marginTop: 12 }}>
+        {/* Recent Products */}
+        <h3 style={{ marginTop: 32 }}>Productos recientes</h3>
+        <div className="home__products-grid">
           {products && products.length > 0 ? (
             products.map((p) => (
-              <div key={p.id || p.pk || Math.random()} style={styles.productCard}>
-                <div style={styles.productImageWrap}>
+              <div key={p.id || p.pk || Math.random()} className="home__product-card">
+                <div className="home__product-image-wrap">
                   <img
                     src={p.image || p.photo || placeholderSVG}
                     alt={p.name}
-                    style={styles.productImage}
+                    className="home__product-image"
                     onError={(e) => (e.currentTarget.src = placeholderSVG)}
                   />
                 </div>
-                <div style={{ padding: 10 }}>
-                  <div style={{ fontWeight: 700 }}>{p.name || p.title}</div>
-                  <div style={{ color: "#6b7280", fontSize: 13 }}>{String(p.description || "").slice(0, 60)}</div>
-                  <div style={{ marginTop: 8, fontWeight: 800 }}>
+                <div className="home__product-content">
+                  <div className="home__product-name">{p.name || p.title}</div>
+                  <div className="home__product-description">
+                    {String(p.description || "").slice(0, 60)}{p.description?.length > 60 ? '...' : ''}
+                  </div>
+                  <div className="home__product-price">
                     {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(Number(p.price || 0))}
                   </div>
                 </div>
               </div>
             ))
           ) : (
-            <div style={{ color: "#6b7280" }}>No hay productos.</div>
+            <div className="home__empty">No hay productos disponibles.</div>
           )}
         </div>
       </section>
 
-      {/* Cómo funciona */}
-      <section style={{ maxWidth: 1100, margin: '22px auto' }}>
+      {/* How It Works */}
+      <section className="home__section">
         <h3>Cómo funciona</h3>
-        <div style={styles.stepsGrid}>
-          <div style={styles.stepCard}>
-            <div style={styles.stepIcon}>🔎</div>
+        <div className="home__steps-grid">
+          <div className="home__step-card">
+            <div className="home__step-icon">🔎</div>
             <div>
-              <div style={styles.stepTitle}>Explora</div>
-              <div style={styles.stepText}>Encuentra tiendas y productos cerca de ti.</div>
+              <div className="home__step-title">Explora</div>
+              <div className="home__step-text">Encuentra tiendas y productos cerca de ti.</div>
             </div>
           </div>
-          <div style={styles.stepCard}>
-            <div style={styles.stepIcon}>🧺</div>
+          <div className="home__step-card">
+            <div className="home__step-icon">🧺</div>
             <div>
-              <div style={styles.stepTitle}>Agrega al carrito</div>
-              <div style={styles.stepText}>Ajusta cantidades y compara opciones.</div>
+              <div className="home__step-title">Agrega al carrito</div>
+              <div className="home__step-text">Ajusta cantidades y compara opciones.</div>
             </div>
           </div>
-          <div style={styles.stepCard}>
-            <div style={styles.stepIcon}>💳</div>
+          <div className="home__step-card">
+            <div className="home__step-icon">💳</div>
             <div>
-              <div style={styles.stepTitle}>Checkout</div>
-              <div style={styles.stepText}>Completa tu compra de forma segura.</div>
+              <div className="home__step-title">Checkout</div>
+              <div className="home__step-text">Completa tu compra de forma segura.</div>
             </div>
           </div>
-          <div style={styles.stepCard}>
-            <div style={styles.stepIcon}>📦</div>
+          <div className="home__step-card">
+            <div className="home__step-icon">📦</div>
             <div>
-              <div style={styles.stepTitle}>Recibe tu pedido</div>
-              <div style={styles.stepText}>Sigue el estado y disfruta tu compra.</div>
+              <div className="home__step-title">Recibe tu pedido</div>
+              <div className="home__step-text">Sigue el estado y disfruta tu compra.</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Comerciantes */}
-      <section style={styles.merchantCta}>
+      {/* Merchant CTA */}
+      <section className="home__merchant-cta">
         <div>
-          <h3 style={{ margin: 0 }}>¿Tienes un negocio?</h3>
-          <p style={{ margin: '6px 0 12px', color: '#e5e7eb' }}>Crea tu tienda, publica productos y empieza a vender hoy.</p>
-          <Link to="/register" style={styles.ctaBtn}>Crear cuenta</Link>
+          <h3>¿Tienes un negocio?</h3>
+          <p>Crea tu tienda, publica productos y empieza a vender hoy.</p>
+          <Link to="/register" className="home__cta-btn">Crear cuenta</Link>
         </div>
-        <div>{shopMiniSVG}</div>
+        <div className="home__cta-visual">{shopMiniSVG}</div>
       </section>
     </div>
   );
@@ -221,26 +234,7 @@ const placeholderSVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' width='600' height='400'><rect width='100%' height='100%' fill='#f3f4f6'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#9ca3af' font-size='20'>Sin imagen</text></svg>`
 );
 
-/* estilos locales */
-const styles = {
-  container: { padding: 20, fontFamily: 'Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial' },
-  hero: { maxWidth: 1100, margin: '6px auto 18px', padding: 18, borderRadius: 12, background: '#fff', boxShadow: '0 6px 18px rgba(2,6,23,0.04)', display: 'grid', gridTemplateColumns: '1fr 220px', gap: 16, alignItems: 'center' },
-  title: { margin: 0, fontSize: 32 },
-  subtitle: { marginTop: 6, color: '#6b7280' },
-  primaryBtn: { marginTop: 8, padding: '8px 12px', borderRadius: 8, background: '#111827', color: '#fff', textDecoration: 'none', fontWeight: 700 },
-  secondaryBtn: { marginTop: 8, padding: '8px 12px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(17,24,39,0.12)', color: '#111827', textDecoration: 'none', fontWeight: 700 },
-
-  skelCard: { width: 220, height: 100, background: 'linear-gradient(90deg,#f3f4f6 0%, #efefef 50%, #f3f4f6 100%)', borderRadius: 8 },
-  productSkel: { height: 220, background: 'linear-gradient(90deg,#f3f4f6 0%, #efefef 50%, #f3f4f6 100%)', borderRadius: 10 },
-
-  shopCard: { display: 'block', padding: 12, borderRadius: 10, background: '#fff', textDecoration: 'none', color: '#111827', boxShadow: '0 6px 18px rgba(2,6,23,0.04)' },
-  productCard: { background: '#fff', borderRadius: 10, overflow: 'hidden', boxShadow: '0 6px 18px rgba(2,6,23,0.04)' },
-  productImageWrap: { width: '100%', height: 140, background: '#f6f7f9', overflow: 'hidden' },
-  productImage: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
-
-  errBox: { padding: 12, background: '#fff1f2', color: '#b91c1c', borderRadius: 8 }
-};
-
+/* SVG Illustrations */
 const heroMiniSVG = (
   <svg width="220" height="120" viewBox="0 0 220 120" xmlns="http://www.w3.org/2000/svg">
     <rect width="220" height="120" rx="12" fill="#f3f4f6" />
@@ -260,11 +254,3 @@ const shopMiniSVG = (
     <rect x="130" y="70" width="40" height="30" rx="4" fill="#e5e7eb" />
   </svg>
 );
-
-styles.stepsGrid = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 12 };
-styles.stepCard = { background: '#fff', borderRadius: 12, padding: 12, border: '1px solid rgba(15,23,42,0.06)', display: 'flex', gap: 10, alignItems: 'center', boxShadow: '0 6px 18px rgba(2,6,23,0.04)' };
-styles.stepIcon = { fontSize: 24 };
-styles.stepTitle = { fontWeight: 800 };
-styles.stepText = { color: '#6b7280', fontSize: 13 };
-styles.merchantCta = { maxWidth: 1100, margin: '20px auto', background: '#111827', color: '#fff', padding: 18, borderRadius: 12, display: 'grid', gridTemplateColumns: '1fr 180px', gap: 16, alignItems: 'center' };
-styles.ctaBtn = { padding: '8px 12px', borderRadius: 8, background: '#fff', color: '#111827', textDecoration: 'none', fontWeight: 800 };

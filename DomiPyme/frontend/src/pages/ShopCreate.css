@@ -1,0 +1,543 @@
+/* ShopCreate.css - Formulario de creación de tienda con paleta navy/coral */
+
+/* ========== Variables ========== */
+:root {
+  --create-navy: #1e3a8a;
+  --create-blue: #3b82f6;
+  --create-coral: #fb7185;
+  --create-bg: #f8fafc;
+  --create-card-bg: #ffffff;
+  --create-text: #0f172a;
+  --create-text-muted: #64748b;
+  --create-border: #e2e8f0;
+  --create-shadow: rgba(30, 58, 138, 0.08);
+  --create-error: #ef4444;
+  --create-success: #10b981;
+}
+
+/* ========== Page wrapper ========== */
+.shop-create-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #f8fafc 100%);
+  padding: 100px 0 60px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.shop-create-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* ========== Header ========== */
+.shop-create-header {
+  text-align: center;
+  margin-bottom: 40px;
+  animation: slideIn 0.5s ease-out;
+}
+
+.shop-create-title {
+  font-size: 42px;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.shop-create-subtitle {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ========== Form card ========== */
+.shop-create-form-card {
+  background: var(--create-card-bg);
+  border-radius: 24px;
+  padding: 48px;
+  box-shadow: 0 20px 60px var(--create-shadow);
+  animation: slideIn 0.5s ease-out 0.2s both;
+}
+
+/* ========== Logo upload ========== */
+.shop-create-logo-section {
+  text-align: center;
+  margin-bottom: 40px;
+  padding-bottom: 32px;
+  border-bottom: 2px solid var(--create-border);
+}
+
+.shop-create-logo-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--create-text);
+  margin: 0 0 20px 0;
+  display: block;
+}
+
+.shop-create-logo-preview {
+  width: 150px;
+  height: 150px;
+  margin: 0 auto 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.1), rgba(59, 130, 246, 0.1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 4px dashed var(--create-border);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.shop-create-logo-preview:hover {
+  border-color: var(--create-blue);
+  transform: scale(1.05);
+}
+
+.shop-create-logo-preview.has-image {
+  border-style: solid;
+  border-color: var(--create-blue);
+}
+
+.shop-create-logo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.shop-create-logo-placeholder {
+  font-size: 60px;
+  color: var(--create-text-muted);
+  opacity: 0.5;
+}
+
+.shop-create-logo-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(30, 58, 138, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.shop-create-logo-preview:hover .shop-create-logo-overlay {
+  opacity: 1;
+}
+
+.shop-create-logo-overlay-icon {
+  font-size: 40px;
+  color: #ffffff;
+}
+
+.shop-create-logo-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: transparent;
+  color: var(--create-blue);
+  border: 2px solid var(--create-blue);
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.shop-create-logo-button:hover {
+  background: var(--create-blue);
+  color: #ffffff;
+}
+
+.shop-create-logo-input {
+  display: none;
+}
+
+/* ========== Form group ========== */
+.shop-create-form-group {
+  margin-bottom: 28px;
+}
+
+.shop-create-form-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--create-text);
+  margin: 0 0 10px 0;
+}
+
+.shop-create-form-label-icon {
+  font-size: 18px;
+  color: var(--create-blue);
+}
+
+.shop-create-form-label-required {
+  color: var(--create-error);
+  margin-left: 4px;
+}
+
+.shop-create-form-input,
+.shop-create-form-textarea {
+  width: 100%;
+  padding: 14px 18px;
+  border: 2px solid var(--create-border);
+  border-radius: 12px;
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--create-text);
+  background: var(--create-bg);
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.shop-create-form-input:focus,
+.shop-create-form-textarea:focus {
+  border-color: var(--create-blue);
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(59, 130, 246, 0.12);
+}
+
+.shop-create-form-input.error,
+.shop-create-form-textarea.error {
+  border-color: var(--create-error);
+}
+
+.shop-create-form-textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.shop-create-form-hint {
+  font-size: 13px;
+  color: var(--create-text-muted);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shop-create-form-hint-icon {
+  font-size: 14px;
+  color: var(--create-blue);
+}
+
+.shop-create-form-error {
+  font-size: 13px;
+  color: var(--create-error);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: shake 0.3s ease;
+}
+
+.shop-create-form-error-icon {
+  font-size: 14px;
+}
+
+/* ========== Slug group ========== */
+.shop-create-slug-group {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.shop-create-slug-prefix {
+  padding: 14px 18px;
+  background: var(--create-border);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--create-text-muted);
+  white-space: nowrap;
+}
+
+/* ========== Actions ========== */
+.shop-create-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 2px solid var(--create-border);
+}
+
+.shop-create-button {
+  flex: 1;
+  padding: 16px 32px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.shop-create-button-primary {
+  background: linear-gradient(135deg, var(--create-navy), var(--create-blue));
+  color: #ffffff;
+  box-shadow: 0 4px 16px rgba(30, 58, 138, 0.3);
+}
+
+.shop-create-button-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(30, 58, 138, 0.4);
+}
+
+.shop-create-button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.shop-create-button-secondary {
+  background: transparent;
+  color: var(--create-text-muted);
+  border: 2px solid var(--create-border);
+}
+
+.shop-create-button-secondary:hover {
+  background: var(--create-border);
+  color: var(--create-text);
+}
+
+/* ========== Loading spinner ========== */
+.shop-create-spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* ========== Error alert ========== */
+.shop-create-error-alert {
+  background: #fef2f2;
+  border: 2px solid #fecaca;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: slideIn 0.3s ease-out;
+}
+
+.shop-create-error-alert-icon {
+  font-size: 22px;
+  color: var(--create-error);
+  flex-shrink: 0;
+}
+
+.shop-create-error-alert-content h4 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #991b1b;
+  margin: 0 0 4px 0;
+}
+
+.shop-create-error-alert-content p {
+  font-size: 14px;
+  color: #dc2626;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ========== Success message ========== */
+.shop-create-success {
+  text-align: center;
+  padding: 48px;
+}
+
+.shop-create-success-icon {
+  font-size: 80px;
+  color: var(--create-success);
+  margin-bottom: 24px;
+  animation: scaleIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.shop-create-success-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--create-text);
+  margin: 0 0 12px 0;
+}
+
+.shop-create-success-message {
+  font-size: 16px;
+  color: var(--create-text-muted);
+  margin: 0 0 32px 0;
+  line-height: 1.6;
+}
+
+.shop-create-success-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, var(--create-navy), var(--create-blue));
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(30, 58, 138, 0.3);
+}
+
+.shop-create-success-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(30, 58, 138, 0.4);
+}
+
+/* ========== Animations ========== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+  .shop-create-page {
+    padding: 80px 0 40px;
+  }
+
+  .shop-create-header {
+    margin-bottom: 32px;
+  }
+
+  .shop-create-title {
+    font-size: 32px;
+  }
+
+  .shop-create-subtitle {
+    font-size: 16px;
+  }
+
+  .shop-create-form-card {
+    padding: 32px 28px;
+    border-radius: 20px;
+  }
+
+  .shop-create-logo-section {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+  }
+
+  .shop-create-logo-preview {
+    width: 120px;
+    height: 120px;
+  }
+
+  .shop-create-logo-placeholder {
+    font-size: 48px;
+  }
+
+  .shop-create-slug-group {
+    grid-template-columns: 1fr;
+  }
+
+  .shop-create-slug-prefix {
+    text-align: center;
+  }
+
+  .shop-create-actions {
+    flex-direction: column;
+    margin-top: 32px;
+    padding-top: 24px;
+  }
+
+  .shop-create-success {
+    padding: 32px 20px;
+  }
+
+  .shop-create-success-icon {
+    font-size: 64px;
+  }
+
+  .shop-create-success-title {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .shop-create-container {
+    padding: 0 16px;
+  }
+
+  .shop-create-title {
+    font-size: 26px;
+  }
+
+  .shop-create-subtitle {
+    font-size: 15px;
+  }
+
+  .shop-create-form-card {
+    padding: 24px 20px;
+  }
+
+  .shop-create-logo-preview {
+    width: 100px;
+    height: 100px;
+  }
+
+  .shop-create-form-input,
+  .shop-create-form-textarea {
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+
+  .shop-create-button {
+    padding: 14px 24px;
+    font-size: 15px;
+  }
+}

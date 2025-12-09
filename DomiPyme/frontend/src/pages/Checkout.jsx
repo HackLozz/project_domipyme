@@ -6,6 +6,8 @@ import { useCart } from '../context/CartContext';
 import StripeCheckoutForm from '../components/StripeCheckoutForm';
 import getStripe from '../config/stripe';
 import api from '../components/Api';
+import { showToast } from '../components/Toast';
+import './Checkout.css';
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -55,6 +57,7 @@ export default function Checkout() {
     const addressError = validateAddress();
     if (addressError) {
       setError(addressError);
+      showToast(addressError, 'error');
       return;
     }
 
@@ -62,6 +65,7 @@ export default function Checkout() {
     setError(null);
 
     try {
+      showToast('Creando orden...', 'info', 2000);
       // Create order with shipping address
       const payload = {
         items: cart.items.map((item) => ({
@@ -74,23 +78,29 @@ export default function Checkout() {
 
       const { data } = await api.post('/orders/', payload);
       setOrderId(data.id);
+      showToast('Orden creada, procede al pago', 'success', 2000);
       setStep('payment');
     } catch (err) {
       console.error('Order creation error:', err);
       setError(err.response?.data?.detail || 'Error al crear la orden');
+      showToast('Error al crear la orden', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const handlePaymentSuccess = async (paymentIntent) => {
+    showToast('¡Pago procesado exitosamente!', 'success', 2000);
     // Clear cart and redirect to success page
     await clearCart();
-    navigate(`/order/success?order_id=${orderId}&payment_intent=${paymentIntent.id}`);
+    setTimeout(() => {
+      navigate(`/order/success?order_id=${orderId}&payment_intent=${paymentIntent.id}`);
+    }, 1000);
   };
 
   const handlePaymentError = (err) => {
     setError('Error al procesar el pago. Por favor, intenta de nuevo.');
+    showToast('Error al procesar el pago', 'error');
   };
 
   if (cartLoading) {

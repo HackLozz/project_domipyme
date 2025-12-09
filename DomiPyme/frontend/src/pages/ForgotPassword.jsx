@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../components/Api';
 import { Link } from 'react-router-dom';
+import './ForgotPassword.css';
 
 export default function ForgotPassword() {
   const [mounted, setMounted] = useState(false);
@@ -11,20 +12,64 @@ export default function ForgotPassword() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [debugLink, setDebugLink] = useState(null);
+  
+  // Rate limiting: prevenir spam de solicitudes
+  const [requestCount, setRequestCount] = useState(0);
+  const [isRateLimited, setIsRateLimited] = useState(false);
+  const [cooldownTime, setCooldownTime] = useState(0);
+  
+  // Validación visual en tiempo real
+  const [emailError, setEmailError] = useState('');
+  const [emailValid, setEmailValid] = useState(false);
 
   useEffect(() => {
-    // micro-delay solo para animación; conserva tu UX
     const t = setTimeout(() => setMounted(true), 8);
     return () => {
       clearTimeout(t);
-      // marcar como desmontado para evitar setState después del unmount
       isMountedRef.current = false;
     };
   }, []);
+  
+  // Validar email en tiempo real
+  useEffect(() => {
+    if (!email) {
+      setEmailError('');
+      setEmailValid(false);
+      return;
+    }
+    
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (re.test(email)) {
+      setEmailError('');
+      setEmailValid(true);
+    } else {
+      setEmailError('Formato de email inválido');
+      setEmailValid(false);
+    }
+  }, [email]);
+  
+  // Cooldown timer para rate limiting
+  useEffect(() => {
+    if (cooldownTime <= 0) {
+      setIsRateLimited(false);
+      return;
+    }
+    
+    const timer = setInterval(() => {
+      setCooldownTime(prev => {
+        if (prev <= 1) {
+          setIsRateLimited(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [cooldownTime]);
 
   const validateEmail = (v) => {
     if (!v) return 'Ingresa tu email';
-    // simple email check
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(v) ? null : 'Email inválido';
   };
@@ -63,7 +108,7 @@ export default function ForgotPassword() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (loading) return; // evitar envíos dobles
+    if (loading || isRateLimited) return;
 
     // limpiar mensajes previos
     setMsg(null);
@@ -75,17 +120,21 @@ export default function ForgotPassword() {
       setError(v);
       return;
     }
+    
+    // Rate limiting: máximo 3 solicitudes
+    if (requestCount >= 3) {
+      setIsRateLimited(true);
+      setCooldownTime(60);
+      setError('Has alcanzado el límite de solicitudes. Espera 60 segundos antes de intentar nuevamente.');
+      return;
+    }
 
     setLoading(true);
     try {
-      // Nota: tu backend puede exponer este endpoint como:
-      // - 'auth/password-reset-request/' (si así lo tienes ahora)
-      // - o 'auth/password-reset/' (si adoptas la implementación sugerida)
-      // Mantengo el endpoint que tenías para no romper otros archivos.
       const { data } = await api.post('auth/password-reset-request/', { email: raw });
 
-      // Solo actualizar estado si el componente sigue montado
       if (isMountedRef.current) {
+        setRequestCount(prev => prev + 1);
         const maybeLink = data?.debug_reset_url;
         setMsg(
           maybeLink
@@ -93,7 +142,6 @@ export default function ForgotPassword() {
             : 'Si existe una cuenta con ese email, recibirás instrucciones por correo.'
         );
         setError(null);
-        // Guardar el enlace de depuración en estado para mostrarlo
         setDebugLink(maybeLink || null);
       }
     } catch (err) {
@@ -129,7 +177,10 @@ export default function ForgotPassword() {
           <p style={styles.subtitle}>Te enviaremos un correo con las instrucciones para restablecer tu contraseña.</p>
 
           <form onSubmit={submit} style={styles.form} noValidate>
-            <label htmlFor="fp-email" style={styles.label}>Email</label>
+            <label htmlFor="fp-email" style={styles.label}>
+              Email
+              {emailValid && <span className="validation-success"> ✓</span>}
+            </label>
             <input
               id="fp-email"
               name="email"
@@ -137,16 +188,37 @@ export default function ForgotPassword() {
               value={email}
               onChange={(e) => { setEmail(e.target.value); setError(null); setMsg(null); }}
               style={styles.input}
-              className="input-field"
+              className={`input-field ${emailError ? 'form-input-error' : emailValid ? 'form-input-success' : ''}`}
               placeholder="tu@correo.com"
               aria-describedby="fp-desc"
+              aria-invalid={!!emailError}
               required
-              disabled={loading}
+              disabled={loading || isRateLimited}
             />
+            
+            {emailError && email && (
+              <small className="field-error" role="alert">
+                ⚠️ {emailError}
+              </small>
+            )}
 
             <div id="fp-desc" style={{ fontSize: 13, color: '#6b7280', marginTop: 6 }}>
               Te enviaremos un enlace seguro para restablecer tu contraseña.
             </div>
+            
+            {/* Rate limit warning */}
+            {requestCount > 0 && requestCount < 3 && (
+              <div className="warning-message" style={{ marginTop: 8 }}>
+                📧 Has enviado {requestCount} de 3 solicitudes permitidas
+              </div>
+            )}
+            
+            {isRateLimited && (
+              <div className="lockout-timer">
+                <span className="lockout-icon">🔒</span>
+                Límite alcanzado. Espera {cooldownTime}s para intentar nuevamente
+              </div>
+            )}
 
             {error && <div role="alert" style={styles.error}>{error}</div>}
             {msg && <div role="status" style={styles.success}>{msg}</div>}
@@ -160,12 +232,17 @@ export default function ForgotPassword() {
 
             <button
               type="submit"
-              className="btn-primary"
-              style={{ ...styles.button, opacity: loading ? 0.85 : 1 }}
-              disabled={loading}
+              className={`btn-primary ${isRateLimited ? 'submit-button-locked' : ''}`}
+              style={{ 
+                ...styles.button, 
+                opacity: (loading || isRateLimited) ? 0.85 : 1,
+                cursor: (loading || isRateLimited) ? 'not-allowed' : 'pointer',
+              }}
+              disabled={loading || isRateLimited}
               aria-busy={loading}
             >
-              {loading ? 'Enviando...' : 'Enviar instrucciones'}
+              {loading && <span className="spinner-small" />}
+              {isRateLimited ? `Bloqueado (${cooldownTime}s)` : loading ? 'Enviando...' : 'Enviar instrucciones'}
             </button>
           </form>
 
