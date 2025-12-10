@@ -1,4 +1,11 @@
-// src/pages/Register.jsx - Formulario de registro mejorado con validaciones
+// src/pages/Register.jsx
+/**
+ * Página de Registro
+ * Formulario con validaciones visuales y de negocio.
+ * - Valida email, nombre, apellido y fuerza de contraseña en tiempo real.
+ * - Redirige tras registro exitoso.
+ * - Documenta el patrón de validación y redirección para onboarding seguro.
+ */
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../components/Api';

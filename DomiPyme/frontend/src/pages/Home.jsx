@@ -1,5 +1,16 @@
 // src/pages/Home.jsx
 import React, { useEffect, useState } from "react";
+
+// Sanitiza texto plano para evitar XSS
+function sanitizeText(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 import { Link } from "react-router-dom";
 import api from "../components/Api";
 import "./Home.css";
@@ -142,7 +153,7 @@ export default function Home() {
             shops.slice(0, 8).map((s) => (
               <Link key={s.id} to={`/shop/${encodeURIComponent(s.slug || s.id)}`} className="home__shop-card">
                 <div className="home__shop-name">{s.name}</div>
-                <div className="home__shop-description">{s.description}</div>
+                <div className="home__shop-description">{sanitizeText(s.description)}</div>
               </Link>
             ))
           ) : (
@@ -167,7 +178,7 @@ export default function Home() {
                 <div className="home__product-content">
                   <div className="home__product-name">{p.name || p.title}</div>
                   <div className="home__product-description">
-                    {String(p.description || "").slice(0, 60)}{p.description?.length > 60 ? '...' : ''}
+                    {sanitizeText(String(p.description || '').slice(0, 60))}{p.description?.length > 60 ? '...' : ''}
                   </div>
                   <div className="home__product-price">
                     {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(Number(p.price || 0))}

@@ -1,4 +1,11 @@
 // src/pages/Login.jsx
+/**
+ * Página de Login
+ * Implementa validaciones robustas, manejo de errores y redirección segura.
+ * - Redirige automáticamente si el usuario ya está autenticado.
+ * - Guarda la ruta original para volver tras login.
+ * - Valida emails temporales y fuerza de contraseña.
+ */
 import React, { useEffect, useRef, useState } from 'react';
 // Estructura para internacionalización (i18n)
 // import { useTranslation } from 'react-i18next';
@@ -137,6 +144,7 @@ export default function Login() {
         msg = err.message;
       }
       if (isMountedRef.current) {
+        // Ya no bloqueamos el login por cuenta inactiva. Mostramos advertencia si el usuario no está verificado en el dashboard.
         const newAttempts = failedAttempts + 1;
         setFailedAttempts(newAttempts);
         if (newAttempts >= 5) {

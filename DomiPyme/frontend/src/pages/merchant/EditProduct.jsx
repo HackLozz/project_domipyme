@@ -2,10 +2,12 @@
 import { useState, useEffect } from "react";
 import api from "../../components/Api";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthProvider";
 
 export default function EditProduct() {
   const { id } = useParams();
   const nav = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -15,6 +17,13 @@ export default function EditProduct() {
   const [success, setSuccess] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [accessDenied, setAccessDenied] = useState(false);
+  // Protección de roles: solo merchant o admin
+  useEffect(() => {
+    if (!authLoading && user && !(user.is_merchant || user.is_staff)) {
+      setAccessDenied(true);
+    }
+  }, [user, authLoading]);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 10);
@@ -113,10 +122,19 @@ export default function EditProduct() {
     }
   };
 
-  if (loadingData) {
+  if (authLoading || loadingData) {
     return (
       <div style={styles.container}>
         <div style={styles.loadingBox}>Cargando producto...</div>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.errorBox}>Acceso denegado: solo el merchant o admin puede editar productos.</div>
+        <Link to="/merchant/products" style={styles.btnBack}>← Volver al panel</Link>
       </div>
     );
   }

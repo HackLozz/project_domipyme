@@ -12,48 +12,41 @@ from django.core.mail import send_mail
 
 class CustomUserManager(BaseUserManager):
     """
-    Gestor personalizado que usa 'email' como identificador único.
+    Gestor personalizado para usuarios.
+    Usa 'email' como identificador único y soporta flujos OAuth y tradicionales.
     """
 
     use_in_migrations = True
 
     def _create_user(self, email, password, **extra_fields):
         """
-        Crea y guarda un usuario con el email y la contraseña proporcionados.
-        NOTA: no forzamos password here para permitir casos especiales (ej: usuarios
-        creados por OAuth), pero los superusuarios sí deben tener contraseña.
+        Crea y guarda un usuario con email y contraseña.
+        Permite password vacío para flujos especiales (OAuth).
         """
         if not email:
             raise ValueError(_("El usuario debe tener un correo electrónico"))
-        email = self.normalize_email(email)
-        # normalizar a minúsculas para consistencia y trazabilidad
-        email = email.lower()
+        email = self.normalize_email(email).lower()
         user = self.model(email=email, **extra_fields)
         if password:
             user.set_password(password)
         else:
-            # Si no se establece password, guardamos sin password (inoperable para login).
-            # Esto es intencional para soportar flujos especiales; documentar su uso.
             user.set_unusable_password()
         user.save(using=self._db)
         return user
 
     def create_user(self, email, password=None, **extra_fields):
         """
-        Crear usuario regular. Por defecto is_active=True, is_staff=False, is_superuser=False.
-        Se permite password=None para flujos especiales (OAuth), pero esto crea una cuenta
-        sin password utilizable por login normal.
+        Crea usuario regular. Por defecto is_active=True, is_staff=False, is_superuser=False.
         """
         extra_fields.setdefault("is_staff", False)
         extra_fields.setdefault("is_superuser", False)
         extra_fields.setdefault("is_active", True)
-        # allow passing is_merchant via extra_fields (default False)
         extra_fields.setdefault("is_merchant", False)
         return self._create_user(email, password, **extra_fields)
 
     def create_superuser(self, email, password=None, **extra_fields):
         """
-        Crear superusuario. Aquí sí exigimos contraseña por razones de seguridad.
+        Crea superusuario. Exige contraseña por seguridad.
         """
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)

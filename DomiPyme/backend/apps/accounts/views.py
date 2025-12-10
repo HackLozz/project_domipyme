@@ -241,25 +241,30 @@ class ObtainTokenPairView(APIView):
 
     def post(self, request, *args, **kwargs):
         serializer = CustomTokenObtainSerializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data.get("user")  # asumimos que el serializer retorna 'user'
-        # Generate tokens
-        refresh = RefreshToken.for_user(user)
-        response_data = {
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "first_name": getattr(user, "first_name", ""),
-                "last_name": getattr(user, "last_name", ""),
-                "is_merchant": getattr(user, "is_merchant", False),
-                "is_staff": getattr(user, "is_staff", False),
-                "role": "admin" if user.is_staff else ("merchant" if getattr(user, "is_merchant", False) else "customer"),
+        try:
+            serializer.is_valid(raise_exception=True)
+            user = serializer.validated_data.get("user")
+            refresh = RefreshToken.for_user(user)
+            response_data = {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": getattr(user, "first_name", ""),
+                    "last_name": getattr(user, "last_name", ""),
+                    "is_merchant": getattr(user, "is_merchant", False),
+                    "is_staff": getattr(user, "is_staff", False),
+                    "role": "admin" if user.is_staff else ("merchant" if getattr(user, "is_merchant", False) else "customer"),
+                    "is_verified": getattr(user, "is_active", False),
+                }
             }
-        }
-        logger.info("User logged in: %s (id=%s)", user.email, user.id)
-        return Response(response_data, status=status.HTTP_200_OK)
+            logger.info("User logged in: %s (id=%s) IP=%s UA=%s", user.email, user.id, request.META.get('REMOTE_ADDR'), request.META.get('HTTP_USER_AGENT'))
+            return Response(response_data, status=status.HTTP_200_OK)
+        except Exception as exc:
+            # Loguear intento fallido con IP y user-agent
+            logger.warning("Login failed for email=%s IP=%s UA=%s: %s", request.data.get('email', ''), request.META.get('REMOTE_ADDR'), request.META.get('HTTP_USER_AGENT'), str(exc))
+            raise
 
 
 class MeView(generics.RetrieveAPIView):

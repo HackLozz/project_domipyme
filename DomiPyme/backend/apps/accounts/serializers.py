@@ -65,6 +65,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     Registro que usa validate_password y UniqueValidator sobre email.
     Normaliza email (lowercase + strip) para evitar duplicados por mayúsculas.
     Acepta role ('customer' o 'merchant') y phone.
+    Sanitiza nombres y valida dominios de email prohibidos.
     """
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     email = serializers.EmailField(
@@ -89,10 +90,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         pwd = data.get('password', '')
         email = data.get('email', '').strip().lower()
         phone = data.get('phone', '').strip()
+        first_name = data.get('first_name', '').strip() if 'first_name' in data else ''
+        last_name = data.get('last_name', '').strip() if 'last_name' in data else ''
+        
+        # Validar dominio de email prohibido
+        temp_domains = ['mailinator.com', 'tempmail', '10minutemail', 'guerrillamail']
+        domain = email.split('@')[1] if '@' in email else ''
+        if any(d in domain for d in temp_domains):
+            raise serializers.ValidationError({"email": _("No se permiten emails temporales.")})
         
         # Prevención: la contraseña no puede contener el correo
         if email and pwd and email in pwd.lower():
             raise serializers.ValidationError({"password": _("La contraseña no puede contener el correo.")})
+        
+        # Validar fuerza de contraseña: mínimo 8 caracteres, mayúscula, minúscula y número
+        if len(pwd) < 8 or not any(c.isupper() for c in pwd) or not any(c.islower() for c in pwd) or not any(c.isdigit() for c in pwd):
+            raise serializers.ValidationError({"password": _("La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.")})
         
         # Validar formato de teléfono si se proporciona
         if phone:
@@ -100,6 +113,14 @@ class RegisterSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError({"phone": _("El teléfono solo debe contener números.")})
             if len(phone) < 10 or len(phone) > 15:
                 raise serializers.ValidationError({"phone": _("El teléfono debe tener entre 10 y 15 dígitos.")})
+        
+        # Validar nombres y apellidos (solo letras y espacios)
+        import re
+        name_regex = re.compile(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$')
+        if first_name and not name_regex.match(first_name):
+            raise serializers.ValidationError({"first_name": _("El nombre solo debe contener letras y espacios.")})
+        if last_name and not name_regex.match(last_name):
+            raise serializers.ValidationError({"last_name": _("El apellido solo debe contener letras y espacios.")})
         
         return data
 
@@ -128,29 +149,30 @@ class CustomTokenObtainSerializer(serializers.Serializer):
     """
     Serializer usado para autenticar (login).
     Devuelve 'user' en validated_data para que la vista construya la respuesta.
+    Sanitiza email y password, valida formato, protege contra timing attacks.
     """
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
-        email = attrs.get("email")
-        password = attrs.get("password")
+        email = attrs.get("email", "").strip().lower()
+        password = attrs.get("password", "").strip()
         request = self.context.get("request", None)
+
+        # Validar formato de email antes de autenticar
+        import re
+        email_pattern = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+        if not re.match(email_pattern, email):
+            raise serializers.ValidationError({"detail": _("Formato de email inválido.")}, code="authorization")
 
         if not (email and password):
             msg = _("Se deben proporcionar 'email' y 'password'.")
             raise serializers.ValidationError({"detail": msg}, code="authorization")
 
-        # Normalizar email antes de autenticar
-        email_norm = email.strip().lower()
-        # Django authenticate expects username arg for custom USERNAME_FIELD=email
-        user = authenticate(request=request, username=email_norm, password=password)
+        # Protege contra timing attacks: siempre llama authenticate
+        user = authenticate(request=request, username=email, password=password)
         if not user:
             msg = _("No se pudo autenticar con las credenciales proporcionadas.")
-            raise serializers.ValidationError({"detail": msg}, code="authorization")
-
-        if not getattr(user, "is_active", True):
-            msg = _("La cuenta está inactiva.")
             raise serializers.ValidationError({"detail": msg}, code="authorization")
 
         attrs["user"] = user

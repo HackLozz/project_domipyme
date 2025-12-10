@@ -39,26 +39,10 @@ import MerchantEditProduct from './pages/merchant/EditProduct';
 import { useAuth } from './context/AuthProvider';
 
 /**
- * PrivateRoute component: protege rutas, opcionalmente valida rol.
- * role: 'admin'|'merchant'|'customer' | undefined -> solo requiere autenticación.
+ * Componente principal de la aplicación.
+ * Define el enrutado global y la protección de rutas por rol y autenticación.
+ * Incluye Navbar, Toasts y todas las páginas principales.
  */
-function PrivateRoute({ children, role }) {
-  const { user, loading } = useAuth();
-
-  if (loading) return <div />; // o spinner
-
-  if (!user) return <Navigate to="/login" replace />;
-
-  if (role && user.role !== role) {
-    // si el rol no coincide redirigimos al home o al dashboard correspondiente
-    if (user.role === 'admin') return <Navigate to="/admin" replace />;
-    if (user.role === 'merchant') return <Navigate to="/merchant" replace />;
-    return <Navigate to="/" replace />;
-  }
-
-  return children;
-}
-
 export default function App() {
   return (
     <>
@@ -191,4 +175,31 @@ export default function App() {
       </Routes>
     </>
   );
+}
+
+/**
+ * PrivateRoute component: protege rutas, opcionalmente valida rol.
+ * role: 'admin'|'merchant'|'customer' | undefined -> solo requiere autenticación.
+ * Redirige según estado de usuario y rol.
+ */
+function PrivateRoute({ children, role }) {
+  const { user, loading } = useAuth();
+
+  if (loading) return <div />; // o spinner
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  // Si el usuario no está verificado, redirigir a /verify-email
+  if (user && user.is_verified === false) {
+    return <Navigate to="/verify-email" replace />;
+  }
+
+  if (role && user.role !== role) {
+    // si el rol no coincide redirigimos al home o al dashboard correspondiente
+    if (user.role === 'admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'merchant') return <Navigate to="/merchant" replace />;
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
 }

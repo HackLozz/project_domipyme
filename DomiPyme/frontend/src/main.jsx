@@ -2,14 +2,23 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+
 import App from './App';
 import { AuthProvider } from './context/AuthProvider';
 import { CartProvider } from './context/CartContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import './styles/colors.css';
 import './animations.css';
+import { disableConsoleInProd } from './utils/disableConsoleInProd';
 
-// Configuración de React Router con flags de futuro para v7
+// Deshabilita logs de consola en producción
+disableConsoleInProd();
+
+/**
+ * Punto de entrada principal del frontend.
+ * Renderiza la aplicación con providers globales y manejo de errores.
+ * Configura React Router y muestra advertencia si falta el root.
+ */
 const routerConfig = {
   future: {
     v7_startTransition: true,

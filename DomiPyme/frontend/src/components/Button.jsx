@@ -1,3 +1,15 @@
+/**
+ * Componente Button reutilizable.
+ * Props:
+ * - variant: 'primary' | 'secondary' | 'success' | 'danger' | 'outline'
+ * - size: 'small' | 'medium' | 'large'
+ * - loading: muestra spinner
+ * - disabled: deshabilita el botón
+ * - fullWidth: ocupa todo el ancho
+ * - icon: ícono opcional
+ * - type: tipo de botón
+ * - ...props: otros props nativos
+ */
 import LoadingSpinner from './LoadingSpinner';
 
 const Button = ({
@@ -40,14 +52,8 @@ const Button = ({
     outline: {
       background: 'transparent',
       color: '#3b82f6',
-      border: '2px solid #3b82f6',
-      hoverBackground: '#eff6ff',
-    },
-    ghost: {
-      background: 'transparent',
-      color: '#374151',
-      border: 'none',
-      hoverBackground: '#f3f4f6',
+      border: '1px solid #3b82f6',
+      hoverBackground: '#e0e7ff',
     },
   };
 
@@ -74,6 +80,7 @@ const Button = ({
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
+      aria-disabled={disabled || loading}
       style={{
         ...styles.button,
         ...variantStyle,

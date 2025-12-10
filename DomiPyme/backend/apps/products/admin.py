@@ -1,9 +1,9 @@
 # backend/apps/products/admin.py
 from django.contrib import admin
-from .models import Product
+from .models import ProductItem
 
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
+@admin.register(ProductItem)
+class ProductItemAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'price', 'stock', 'active', 'created_at')
     list_filter = ('active',)
     search_fields = ('name', 'description')

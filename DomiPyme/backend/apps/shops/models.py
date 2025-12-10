@@ -7,6 +7,10 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 User = settings.AUTH_USER_MODEL
 
 class Shop(models.Model):
+    """
+    Modelo de tienda.
+    Representa una tienda administrada por un usuario, con control de visibilidad y unicidad de slug.
+    """
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="shops")
     name = models.CharField(max_length=150)
     slug = models.SlugField(unique=True)
@@ -26,6 +30,10 @@ class Shop(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        """
+        Genera un slug único basado en el nombre de la tienda.
+        Evita colisiones usando contador incremental.
+        """
         if not self.slug:
             base = slugify(self.name)[:50]
             slug = base
@@ -38,6 +46,10 @@ class Shop(models.Model):
 
 
 class Category(models.Model):
+    """
+    Categoría de productos dentro de una tienda.
+    Controla unicidad por tienda y slug, y visibilidad.
+    """
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name="categories")
     name = models.CharField(max_length=100)
     slug = models.SlugField(max_length=120, blank=True)
@@ -56,6 +68,9 @@ class Category(models.Model):
         return f"{self.shop.name} - {self.name}"
 
     def save(self, *args, **kwargs):
+        """
+        Genera un slug único para la categoría dentro de la tienda.
+        """
         if not self.slug:
             self.slug = slugify(self.name)[:120]
         super().save(*args, **kwargs)

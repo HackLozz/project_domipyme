@@ -2,7 +2,19 @@
 from django.db import models
 from django.utils.text import slugify
 
-class Product(models.Model):
+class ProductItem(models.Model):
+    """
+    Modelo de producto principal.
+    Representa un producto disponible en la plataforma, con control de stock, precio y visibilidad.
+    """
+    shop = models.ForeignKey(
+        'shops.Shop',
+        on_delete=models.CASCADE,
+        related_name='products_in_products',
+        help_text='Tienda a la que pertenece el producto.',
+        null=True,
+        blank=True
+    )
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True, blank=True)
     description = models.TextField(blank=True)
@@ -21,11 +33,15 @@ class Product(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        """
+        Genera un slug único basado en el nombre del producto.
+        Evita colisiones de slug usando un contador incremental.
+        """
         if not self.slug and self.name:
             base = slugify(self.name)[:200]
             slug = base
             counter = 1
-            while Product.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+            while ProductItem.objects.filter(slug=slug).exclude(pk=self.pk).exists():
                 slug = f"{base}-{counter}"
                 counter += 1
             self.slug = slug

@@ -2,9 +2,11 @@
 import { useEffect, useState } from "react";
 import api from "../../components/Api";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthProvider";
 
 export default function EditShop() {
   const nav = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -12,6 +14,13 @@ export default function EditShop() {
   const [error, setError] = useState(null);
   const [errors, setErrors] = useState({});
   const [success, setSuccess] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
+  // Protección de roles: solo merchant o admin
+  useEffect(() => {
+    if (!authLoading && user && !(user.is_merchant || user.is_staff)) {
+      setAccessDenied(true);
+    }
+  }, [user, authLoading]);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 10);
@@ -90,10 +99,19 @@ export default function EditShop() {
     }
   };
 
-  if (loadingData) {
+  if (authLoading || loadingData) {
     return (
       <div style={styles.container}>
         <div style={styles.loadingBox}>Cargando tienda...</div>
+      </div>
+    );
+  }
+
+  if (accessDenied) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.errorBox}>Acceso denegado: solo el merchant o admin puede editar la tienda.</div>
+        <Link to="/merchant" style={styles.btnBack}>← Volver al panel</Link>
       </div>
     );
   }

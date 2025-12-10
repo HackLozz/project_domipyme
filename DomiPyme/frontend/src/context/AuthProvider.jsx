@@ -3,6 +3,19 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import api from '../components/Api';
 import { useNavigate } from 'react-router-dom';
 
+
+// Limpieza centralizada de datos sensibles
+export function clearSensitiveStorage() {
+  try {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user_data');
+    sessionStorage.removeItem('access_token');
+    sessionStorage.removeItem('refresh_token');
+    sessionStorage.removeItem('user_data');
+  } catch {}
+}
+
 const AuthContext = createContext();
 
 function safeParseJwt(token) {
@@ -36,11 +49,7 @@ export function AuthProvider({ children }) {
   };
 
   const clearAuth = () => {
-    try {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user_data');
-    } catch {}
+    clearSensitiveStorage();
     setUser(null);
   };
 
@@ -65,6 +74,7 @@ export function AuthProvider({ children }) {
         role: u.role || (u.is_staff ? 'admin' : (u.is_merchant ? 'merchant' : 'customer')),
         is_staff: !!u.is_staff,
         is_merchant: !!u.is_merchant,
+        is_verified: u.is_verified !== undefined ? u.is_verified : (u.verified !== undefined ? u.verified : false),
       };
       setUser(normalized);
       persistUser(normalized);
@@ -90,6 +100,7 @@ export function AuthProvider({ children }) {
           role: parsed.role || (parsed.is_staff ? 'admin' : (parsed.is_merchant ? 'merchant' : 'customer')),
           is_staff: !!parsed.is_staff,
           is_merchant: !!parsed.is_merchant,
+          is_verified: parsed.is_verified !== undefined ? parsed.is_verified : (parsed.verified !== undefined ? parsed.verified : false),
         };
         setUser(normalized);
         persistUser(normalized);
@@ -146,6 +157,7 @@ export function AuthProvider({ children }) {
           role: u.is_staff ? 'admin' : (u.is_merchant ? 'merchant' : 'customer'),
           is_staff: !!u.is_staff,
           is_merchant: !!u.is_merchant,
+          is_verified: u.is_verified !== undefined ? u.is_verified : (u.verified !== undefined ? u.verified : false),
         };
       } else {
         const parsed = safeParseJwt(access);
@@ -157,6 +169,7 @@ export function AuthProvider({ children }) {
           role: parsed?.role ?? (parsed?.is_staff ? 'admin' : (parsed?.is_merchant ? 'merchant' : 'customer')),
           is_staff: !!parsed?.is_staff,
           is_merchant: !!parsed?.is_merchant,
+          is_verified: parsed?.is_verified !== undefined ? parsed?.is_verified : (parsed?.verified !== undefined ? parsed?.verified : false),
         };
       }
 

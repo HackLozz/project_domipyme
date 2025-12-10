@@ -1,3 +1,10 @@
+/*
+  Estructura principal de estilos globales para DomiPyme.
+  - Clases semánticas para layout, botones, inputs y componentes visuales.
+  - Accesibilidad visual y responsive.
+  - No contiene estilos innecesarios ni duplicados.
+*/
+
 /* Minimal styles for scaffold */
 body { font-family: Arial, Helvetica, sans-serif; margin:0; padding:0; background:#f7f7f7; }
 .container { max-width:1100px; margin:24px auto; padding:16px; background:#fff; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }

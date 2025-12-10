@@ -5,6 +5,53 @@ import { useAuth } from '../context/AuthProvider';
 import { Navigate } from 'react-router-dom';
 
 export default function AdminPanel() {
+    // Funciones de acción para admin
+    const handleShopEdit = (shop) => {
+      window.open(`/admin/shops/${shop.id}/edit`, '_blank');
+    };
+    const handleShopDelete = async (shop) => {
+      if (window.confirm('¿Eliminar tienda ' + shop.name + '?')) {
+        try {
+          await api.delete(`shops/${shop.id}/`);
+          setShops((prev) => prev.filter(s => s.id !== shop.id));
+          alert('Tienda eliminada correctamente');
+        } catch (err) {
+          alert('Error al eliminar tienda');
+        }
+      }
+    };
+    const handleShopToggle = async (shop) => {
+      try {
+        await api.patch(`shops/${shop.id}/`, { active: !shop.active });
+        setShops((prev) => prev.map(s => s.id === shop.id ? { ...s, active: !s.active } : s));
+        alert(shop.active ? 'Tienda desactivada' : 'Tienda activada');
+      } catch (err) {
+        alert('Error al cambiar estado de tienda');
+      }
+    };
+    const handleProductEdit = (product) => {
+      window.open(`/admin/products/${product.id}/edit`, '_blank');
+    };
+    const handleProductDelete = async (product) => {
+      if (window.confirm('¿Eliminar producto ' + product.name + '?')) {
+        try {
+          await api.delete(`products/${product.id}/`);
+          setProducts((prev) => prev.filter(p => p.id !== product.id));
+          alert('Producto eliminado correctamente');
+        } catch (err) {
+          alert('Error al eliminar producto');
+        }
+      }
+    };
+    const handleProductToggle = async (product) => {
+      try {
+        await api.patch(`products/${product.id}/toggle-active/`);
+        setProducts((prev) => prev.map(p => p.id === product.id ? { ...p, active: !p.active } : p));
+        alert(product.active ? 'Producto desactivado' : 'Producto activado');
+      } catch (err) {
+        alert('Error al cambiar estado de producto');
+      }
+    };
   const { user, loading } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -208,7 +255,12 @@ export default function AdminPanel() {
                       <td style={styles.td}><strong>{s.name}</strong></td>
                       <td style={styles.td}><code style={styles.code}>{s.slug}</code></td>
                       <td style={styles.td}>{s.city || '—'}</td>
-                      <td style={styles.td}><a href={`/shop/${encodeURIComponent(s.slug || s.id)}`} target="_blank" rel="noreferrer" style={styles.btnSmall}>Ver</a></td>
+                      <td style={styles.td}>
+                        <a href={`/shop/${encodeURIComponent(s.slug || s.id)}`} target="_blank" rel="noreferrer" style={styles.btnSmall}>Ver</a>
+                        <button style={styles.btnSmall} onClick={()=>handleShopEdit(s)}>Editar</button>
+                        <button style={{...styles.btnSmall, color:'#991b1b'}} onClick={()=>handleShopDelete(s)}>Eliminar</button>
+                        <button style={styles.btnSmall} onClick={()=>handleShopToggle(s)}>{s.active ? 'Desactivar' : 'Activar'}</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -241,6 +293,9 @@ export default function AdminPanel() {
                       <div style={styles.itemMeta}>{u.is_staff ? 'Admin' : (u.role || 'Cliente')}</div>
                     </div>
                     <span style={u.is_active ? styles.badgeActive : styles.badgeInactive}>{u.is_active ? 'Activo' : 'Inactivo'}</span>
+                    <button style={styles.btnSmall} onClick={()=>handleUserEdit(u)}>Editar</button>
+                    <button style={{...styles.btnSmall, color:'#991b1b'}} onClick={()=>handleUserDelete(u)}>Eliminar</button>
+                    <button style={styles.btnSmall} onClick={()=>handleUserToggle(u)}>{u.is_active ? 'Desactivar' : 'Activar'}</button>
                   </li>
                 ))}
               </ul>
@@ -270,6 +325,9 @@ export default function AdminPanel() {
                       <div style={styles.itemMeta}>{new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP'}).format(Number(p.price||0))}</div>
                     </div>
                     <span style={p.stock > 10 ? styles.badgeActive : (p.stock > 0 ? styles.badgeWarn : styles.badgeInactive)}>{p.stock ?? 0}</span>
+                    <button style={styles.btnSmall} onClick={()=>handleProductEdit(p)}>Editar</button>
+                    <button style={{...styles.btnSmall, color:'#991b1b'}} onClick={()=>handleProductDelete(p)}>Eliminar</button>
+                    <button style={styles.btnSmall} onClick={()=>handleProductToggle(p)}>{p.active ? 'Desactivar' : 'Activar'}</button>
                   </li>
                 ))}
               </ul>

@@ -1,5 +1,16 @@
 // Catalog.jsx
 import React, { useEffect, useState, useRef } from 'react';
+
+// Sanitiza texto plano para evitar XSS
+function sanitizeText(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 import api from '../components/Api';
 import { Link } from 'react-router-dom';
 import SkeletonLoader from '../components/SkeletonLoader';
@@ -207,7 +218,7 @@ export default function Catalog() {
                     <div style={styles.cardBody}>
                       <h3 style={styles.shopName}>{s.name || 'Nombre no disponible'}</h3>
                       {s.description ? (
-                        <p style={styles.desc}>{s.description}</p>
+                        <p style={styles.desc}>{sanitizeText(s.description)}</p>
                       ) : (
                         <p style={{ ...styles.desc, color: '#9ca3af' }}>Sin descripción</p>
                       )}

@@ -12,6 +12,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 DEBUG = os.getenv("DEBUG", "1") == "1"
 
+if not DEBUG and SECRET_KEY == "dev-secret-key":
+    raise Exception("SECRET_KEY inseguro: Debes definir una variable de entorno segura en producción.")
+
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
     "localhost 127.0.0.1"
@@ -44,6 +47,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "apps.core.middleware.RequestLoggingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -164,6 +168,7 @@ REST_FRAMEWORK = {
         "anon": "20/minute",
         "user": "120/minute",
     },
+    "EXCEPTION_HANDLER": "apps.core.exception_handler.custom_exception_handler",
 }
 
 from datetime import timedelta
@@ -186,12 +191,12 @@ if EMAIL_BACKEND_ENV == "smtp":
     EMAIL_HOST = "smtp.gmail.com"
     EMAIL_PORT = 587
     EMAIL_USE_TLS = "True"
-    EMAIL_HOST_USER = "domipyme61125@gmail.com"
-    EMAIL_HOST_PASSWORD = "ntkkmlsteueyaycl"
+    EMAIL_HOST_USER = ("domipyme61125@gmail.com")
+    EMAIL_HOST_PASSWORD = ("sbaxrwwmboviddrs")
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
-DEFAULT_FROM_EMAIL = "EMAIL_HOST_USER"
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER if EMAIL_BACKEND_ENV == "smtp" else "domipyme61125@gmail.com"
 
 # --------------------------------------------------
 # SECURITY (production ready)
@@ -261,7 +266,10 @@ LOGGING = {
 # --------------------------------------------------
 # STRIPE SETTINGS
 # --------------------------------------------------
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "sk_test_51placeholder")
-STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "pk_test_51placeholder")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+if not DEBUG and (not STRIPE_SECRET_KEY or not STRIPE_PUBLISHABLE_KEY):
+    raise Exception("Claves de Stripe no configuradas correctamente para producción.")
 

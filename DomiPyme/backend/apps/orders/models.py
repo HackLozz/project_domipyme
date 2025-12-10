@@ -6,7 +6,8 @@ from django.core.exceptions import ValidationError
 
 class Cart(models.Model):
     """
-    Carrito de compras - puede ser de usuario autenticado o anónimo (session_key)
+    Carrito de compras.
+    Puede pertenecer a usuario autenticado o anónimo (session_key).
     """
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -27,10 +28,8 @@ class Cart(models.Model):
         ]
 
     def __str__(self):
-        if self.user:
-            return f"Cart for {self.user.email}"
-        return f"Anonymous Cart ({self.session_key[:8]}...)"
-
+        return f"Cart for {self.user.email}" if self.user else f"Anonymous Cart ({self.session_key[:8]}...)"
+    
     @property
     def total_items(self):
         """Total de items en el carrito"""
@@ -42,21 +41,20 @@ class Cart(models.Model):
         return sum(item.total_price for item in self.items.all())
 
     def clear(self):
-        """Vaciar el carrito"""
+        """Vacía el carrito"""
         self.items.all().delete()
 
     def merge_with(self, other_cart):
         """
-        Fusionar otro carrito con este (usado al hacer login)
+        Fusiona otro carrito con este (usado al hacer login).
+        Suma cantidades y mueve items.
         """
         for other_item in other_cart.items.all():
             existing_item = self.items.filter(product=other_item.product).first()
             if existing_item:
-                # Sumar cantidades
                 existing_item.quantity += other_item.quantity
                 existing_item.save()
             else:
-                # Mover el item a este carrito
                 other_item.cart = self
                 other_item.save()
         

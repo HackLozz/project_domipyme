@@ -111,6 +111,9 @@ export default function CustomerDashboard() {
         <div className="customer-dashboard-section">
         <div style={styles.mainColumn}>
           <div style={styles.card}>
+  
+            // Advertencia si el usuario no está verificado
+            const showVerifyWarning = user.is_verified === false;
             <div style={styles.cardHeader}>
               <h3 style={styles.cardTitle}>Pedidos recientes</h3>
               {orders.length > 0 && (

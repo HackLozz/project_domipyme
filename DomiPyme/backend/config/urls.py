@@ -14,6 +14,7 @@ urlpatterns = [
     path('api/', include('apps.orders.urls')),
     path('api/', include('apps.payments.urls')),
     path('api/', include('apps.shops.urls')),
+    path('api/', include('apps.products.urls')),
 
     # Si tienes otras rutas o routers, añádelas aquí
 ]

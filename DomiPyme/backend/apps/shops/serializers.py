@@ -87,7 +87,33 @@ class CategorySerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'slug', 'created_at', 'updated_at', 'shop_name', 'product_count')
 
 
+
 class ShopSerializer(serializers.ModelSerializer):
+    def validate(self, data):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if request and request.method == 'POST':
+            if not (user and user.is_authenticated and (user.is_staff or getattr(user, 'is_merchant', False))):
+                raise serializers.ValidationError("Solo admin o merchant pueden crear tiendas.")
+        # Sanitizar nombre y descripción
+        name = data.get('name', '').strip()
+        if not name:
+            raise serializers.ValidationError({"name": "El nombre no puede estar vacío."})
+        if len(name) < 3:
+            raise serializers.ValidationError({"name": "El nombre debe tener al menos 3 caracteres."})
+        data['name'] = name
+        desc = data.get('description', '')
+        if desc:
+            data['description'] = desc.strip()
+        return data
+
+    def validate_owner(self, value):
+        # No permitir cambiar el owner por el serializer
+        request = self.context.get('request')
+        if request and request.method in ['PUT', 'PATCH']:
+            raise serializers.ValidationError("No puedes cambiar el owner de la tienda.")
+        return value
+
     owner = serializers.PrimaryKeyRelatedField(read_only=True)
     owner_email = serializers.EmailField(source='owner.email', read_only=True)
     products_count = serializers.SerializerMethodField()

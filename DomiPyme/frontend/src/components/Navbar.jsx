@@ -9,6 +9,7 @@ import "./Navbar.css";
 /**
  * Navbar Component
  * Barra de navegación responsive con menú móvil y dropdown de usuario
+ * Incluye roles y atributos ARIA para accesibilidad.
  * @component
  */
 export default function Navbar() {
@@ -50,7 +51,7 @@ export default function Navbar() {
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
-    <nav className="navbar">
+    <nav className="navbar" role="navigation" aria-label="Main Navigation">
       <div className="navbar__container">
         {/* Brand */}
         <div className="navbar__brand">
@@ -60,9 +61,10 @@ export default function Navbar() {
 
         {/* Desktop Links */}
         <div className="navbar__links navbar__links--desktop">
-          <Link to="/" className="navbar__link">Home</Link>
-          <Link to="/catalog" className="navbar__link">Catálogo</Link>
-          <Link to="/about" className="navbar__link">Acerca</Link>
+          {/* Solo mostrar navegación completa si no es admin */}
+          {(!user || user.role !== 'admin') && <Link to="/" className="navbar__link">Home</Link>}
+          {(!user || user.role !== 'admin') && <Link to="/catalog" className="navbar__link">Catálogo</Link>}
+          {(!user || user.role !== 'admin') && <Link to="/about" className="navbar__link">Acerca</Link>}
 
           {!user && (
             <>
@@ -75,9 +77,10 @@ export default function Navbar() {
             <>
               <CartIcon />
 
-              {user.role === 'admin' && <Link to="/admin" className="navbar__link">Panel Admin</Link>}
-              {user.role === 'merchant' && <Link to="/merchant" className="navbar__link">Panel Comercio</Link>}
-              {user.role === 'customer' && <Link to="/dashboard" className="navbar__link">Dashboard</Link>}
+              {/* Mostrar paneles solo si el usuario está verificado */}
+              {user.is_verified && user.role === 'admin' && <Link to="/admin" className="navbar__link">Panel Admin</Link>}
+              {user.is_verified && user.role === 'merchant' && <Link to="/merchant" className="navbar__link">Panel Comercio</Link>}
+              {user.is_verified && user.role === 'customer' && <Link to="/dashboard" className="navbar__link">Dashboard</Link>}
 
               <NotificationBell />
 
@@ -108,9 +111,10 @@ export default function Navbar() {
                     <Link to="/profile" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Mi Perfil</Link>
                     <Link to="/orders" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Mis Órdenes</Link>
                     <div className="navbar__divider" />
-                    {user.role === 'admin' && <Link to="/admin" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Panel Admin</Link>}
-                    {user.role === 'merchant' && <Link to="/merchant" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Panel Comercio</Link>}
-                    {user.role === 'customer' && <Link to="/dashboard" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Dashboard</Link>}
+                    {/* Mostrar paneles solo si el usuario está verificado */}
+                    {user.is_verified && user.role === 'admin' && <Link to="/admin" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Panel Admin</Link>}
+                    {user.is_verified && user.role === 'merchant' && <Link to="/merchant" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Panel Comercio</Link>}
+                    {user.is_verified && user.role === 'customer' && <Link to="/dashboard" className="navbar__dropdown-item" onClick={()=>setMenuOpen(false)}>Dashboard</Link>}
                     <button onClick={handleLogout} className="navbar__dropdown-item navbar__dropdown-item--danger">
                       Cerrar sesión
                     </button>
@@ -168,9 +172,16 @@ export default function Navbar() {
               <Link to="/orders" className="navbar__mobile-link" onClick={closeMobileMenu}>Mis Órdenes</Link>
               <Link to="/cart" className="navbar__mobile-link" onClick={closeMobileMenu}>Carrito</Link>
               <Link to="/notifications" className="navbar__mobile-link" onClick={closeMobileMenu}>Notificaciones</Link>
-              {user.role === 'admin' && <Link to="/admin" className="navbar__mobile-link" onClick={closeMobileMenu}>Panel Admin</Link>}
-              {user.role === 'merchant' && <Link to="/merchant" className="navbar__mobile-link" onClick={closeMobileMenu}>Panel Comercio</Link>}
-              {user.role === 'customer' && <Link to="/dashboard" className="navbar__mobile-link" onClick={closeMobileMenu}>Dashboard</Link>}
+              {/* Mostrar paneles solo si el usuario está verificado */}
+              {user.is_verified && user.role === 'admin' && <Link to="/admin" className="navbar__mobile-link" onClick={closeMobileMenu}>Panel Admin</Link>}
+              {user.is_verified && user.role === 'merchant' && <Link to="/merchant" className="navbar__mobile-link" onClick={closeMobileMenu}>Panel Comercio</Link>}
+              {user.is_verified && user.role === 'customer' && <Link to="/dashboard" className="navbar__mobile-link" onClick={closeMobileMenu}>Dashboard</Link>}
+                    {/* Advertencia si el usuario no está verificado */}
+                    {user && !user.is_verified && (
+                      <div style={{background:'#fef3c7',color:'#92400e',padding:'8px 16px',textAlign:'center',fontWeight:600}}>
+                        Tu cuenta no está verificada. <Link to="/verify-email" style={{color:'#b45309',textDecoration:'underline'}}>Verifica tu email</Link> para acceder a todas las funciones.
+                      </div>
+                    )}
               <div className="navbar__mobile-divider" />
               <button onClick={handleLogout} className="navbar__mobile-link navbar__mobile-link--danger">
                 Cerrar sesión

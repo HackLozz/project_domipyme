@@ -25,6 +25,10 @@ import stripe
 import json
 
 class CheckoutView(APIView):
+    """
+    API para procesar el checkout de órdenes.
+    Valida productos, stock y agrupa por tienda antes de crear órdenes.
+    """
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def post(self, request):
