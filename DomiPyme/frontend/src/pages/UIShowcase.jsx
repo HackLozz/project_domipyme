@@ -21,84 +21,60 @@ const UIShowcase = () => {
   };
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>🎨 Showcase de Componentes UX/UI</h1>
+    <main style={styles.container} role="main" aria-label="Showcase de componentes UI/UX">
+      <h1 style={styles.title} tabIndex={-1}>🎨 Showcase de Componentes UX/UI</h1>
 
       {/* Buttons Section */}
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Botones</h2>
+      <section style={styles.section} aria-labelledby="showcase-botones">
+        <h2 id="showcase-botones" style={styles.sectionTitle}>Botones</h2>
         <div style={styles.buttonGrid}>
-          <Button variant="primary" onClick={() => showToast('Botón Primary', 'info')}>
-            Primary
-          </Button>
-          <Button variant="secondary" onClick={() => showToast('Botón Secondary', 'info')}>
-            Secondary
-          </Button>
-          <Button variant="success" onClick={() => showToast('Acción exitosa', 'success')}>
-            Success
-          </Button>
-          <Button variant="danger" onClick={() => showToast('Acción de peligro', 'warning')}>
-            Danger
-          </Button>
-          <Button variant="outline" onClick={() => showToast('Botón Outline', 'info')}>
-            Outline
-          </Button>
-          <Button variant="ghost" onClick={() => showToast('Botón Ghost', 'info')}>
-            Ghost
-          </Button>
+          <Button variant="primary" onClick={() => showToast('Botón Primary', 'info')} aria-label="Botón Primary">Primary</Button>
+          <Button variant="secondary" onClick={() => showToast('Botón Secondary', 'info')} aria-label="Botón Secondary">Secondary</Button>
+          <Button variant="success" onClick={() => showToast('Acción exitosa', 'success')} aria-label="Botón Success">Success</Button>
+          <Button variant="danger" onClick={() => showToast('Acción de peligro', 'warning')} aria-label="Botón Danger">Danger</Button>
+          <Button variant="outline" onClick={() => showToast('Botón Outline', 'info')} aria-label="Botón Outline">Outline</Button>
+          <Button variant="ghost" onClick={() => showToast('Botón Ghost', 'info')} aria-label="Botón Ghost">Ghost</Button>
         </div>
 
         <h3 style={styles.subsectionTitle}>Tamaños</h3>
         <div style={styles.buttonGrid}>
-          <Button size="small" onClick={() => showToast('Pequeño', 'info')}>Small</Button>
-          <Button size="medium" onClick={() => showToast('Mediano', 'info')}>Medium</Button>
-          <Button size="large" onClick={() => showToast('Grande', 'info')}>Large</Button>
+          <Button size="small" onClick={() => showToast('Pequeño', 'info')} aria-label="Botón pequeño">Small</Button>
+          <Button size="medium" onClick={() => showToast('Mediano', 'info')} aria-label="Botón mediano">Medium</Button>
+          <Button size="large" onClick={() => showToast('Grande', 'info')} aria-label="Botón grande">Large</Button>
         </div>
 
         <h3 style={styles.subsectionTitle}>Estados</h3>
         <div style={styles.buttonGrid}>
-          <Button disabled>Deshabilitado</Button>
-          <Button loading>Cargando</Button>
-          <Button fullWidth variant="primary">Full Width</Button>
+          <Button disabled aria-label="Botón deshabilitado">Deshabilitado</Button>
+          <Button loading aria-label="Botón cargando">Cargando</Button>
+          <Button fullWidth variant="primary" aria-label="Botón ancho completo">Full Width</Button>
         </div>
 
         <h3 style={styles.subsectionTitle}>Con Iconos</h3>
         <div style={styles.buttonGrid}>
-          <Button icon="➕" variant="success">Agregar</Button>
-          <Button icon="✏️" variant="primary">Editar</Button>
-          <Button icon="🗑️" variant="danger">Eliminar</Button>
+          <Button icon="➕" variant="success" aria-label="Agregar">Agregar</Button>
+          <Button icon="✏️" variant="primary" aria-label="Editar">Editar</Button>
+          <Button icon="🗑️" variant="danger" aria-label="Eliminar">Eliminar</Button>
         </div>
       </section>
 
       {/* Toasts Section */}
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Notificaciones Toast</h2>
+      <section style={styles.section} aria-labelledby="showcase-toasts">
+        <h2 id="showcase-toasts" style={styles.sectionTitle}>Notificaciones Toast</h2>
         <div style={styles.buttonGrid}>
-          <Button onClick={() => showToast('Información importante', 'info')}>
-            Info Toast
-          </Button>
-          <Button variant="success" onClick={() => showToast('Operación exitosa', 'success')}>
-            Success Toast
-          </Button>
-          <Button variant="danger" onClick={() => showToast('Error al procesar', 'error')}>
-            Error Toast
-          </Button>
-          <Button variant="secondary" onClick={() => showToast('Advertencia: revisa los datos', 'warning')}>
-            Warning Toast
-          </Button>
+          <Button onClick={() => showToast('Información importante', 'info')} aria-label="Toast info">Info Toast</Button>
+          <Button variant="success" onClick={() => showToast('Operación exitosa', 'success')} aria-label="Toast success">Success Toast</Button>
+          <Button variant="danger" onClick={() => showToast('Error al procesar', 'error')} aria-label="Toast error">Error Toast</Button>
+          <Button variant="secondary" onClick={() => showToast('Advertencia: revisa los datos', 'warning')} aria-label="Toast warning">Warning Toast</Button>
         </div>
       </section>
 
       {/* Modals Section */}
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Modales</h2>
+      <section style={styles.section} aria-labelledby="showcase-modales">
+        <h2 id="showcase-modales" style={styles.sectionTitle}>Modales</h2>
         <div style={styles.buttonGrid}>
-          <Button onClick={() => setModalOpen(true)}>
-            Abrir Modal
-          </Button>
-          <Button variant="danger" onClick={() => setConfirmOpen(true)}>
-            Confirm Dialog
-          </Button>
+          <Button onClick={() => setModalOpen(true)} aria-label="Abrir modal">Abrir Modal</Button>
+          <Button variant="danger" onClick={() => setConfirmOpen(true)} aria-label="Abrir confirm dialog">Confirm Dialog</Button>
         </div>
 
         <Modal
@@ -108,15 +84,11 @@ const UIShowcase = () => {
           size="medium"
           footer={
             <>
-              <Button variant="ghost" onClick={() => setModalOpen(false)}>
-                Cancelar
-              </Button>
+              <Button variant="ghost" onClick={() => setModalOpen(false)} aria-label="Cancelar modal">Cancelar</Button>
               <Button variant="primary" onClick={() => {
                 showToast('Modal confirmado', 'success');
                 setModalOpen(false);
-              }}>
-                Confirmar
-              </Button>
+              }} aria-label="Confirmar modal">Confirmar</Button>
             </>
           }
         >
@@ -139,8 +111,8 @@ const UIShowcase = () => {
       </section>
 
       {/* Loading Section */}
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Loading States</h2>
+      <section style={styles.section} aria-labelledby="showcase-loading">
+        <h2 id="showcase-loading" style={styles.sectionTitle}>Loading States</h2>
         <div style={styles.loadingGrid}>
           <div>
             <p>Small</p>
@@ -158,12 +130,13 @@ const UIShowcase = () => {
       </section>
 
       {/* Skeleton Loaders Section */}
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Skeleton Loaders</h2>
+      <section style={styles.section} aria-labelledby="showcase-skeletons">
+        <h2 id="showcase-skeletons" style={styles.sectionTitle}>Skeleton Loaders</h2>
         <Button
           variant="outline"
           onClick={() => setShowSkeletons(!showSkeletons)}
           style={{ marginBottom: '20px' }}
+          aria-label={showSkeletons ? 'Ocultar skeleton loaders' : 'Mostrar skeleton loaders'}
         >
           {showSkeletons ? 'Ocultar' : 'Mostrar'} Skeletons
         </Button>
@@ -194,8 +167,8 @@ const UIShowcase = () => {
       </section>
 
       {/* Animations Section */}
-      <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Animaciones CSS</h2>
+      <section style={styles.section} aria-labelledby="showcase-animaciones">
+        <h2 id="showcase-animaciones" style={styles.sectionTitle}>Animaciones CSS</h2>
         <div style={styles.animationGrid}>
           <div style={styles.animationCard} className="card-hover">
             <p>Card Hover</p>
@@ -211,7 +184,7 @@ const UIShowcase = () => {
           </div>
         </div>
       </section>
-    </div>
+    </main>
   );
 };
 

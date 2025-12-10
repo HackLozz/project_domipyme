@@ -25,6 +25,7 @@ export default function Register() {
     phone: '',
     role: 'customer', // customer o merchant
   });
+
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [pwdStrength, setPwdStrength] = useState(0);
@@ -32,7 +33,6 @@ export default function Register() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [validating, setValidating] = useState({});
-  
   // Estados de validación visual
   const [fieldValid, setFieldValid] = useState({});
   const [pwdRequirements, setPwdRequirements] = useState({
@@ -41,6 +41,17 @@ export default function Register() {
     lowercase: false,
     number: false,
   });
+
+  // Captcha matemático simple
+  const [captcha, setCaptcha] = useState({ a: 0, b: 0, answer: '' });
+  const [captchaError, setCaptchaError] = useState(null);
+
+  // Generar captcha al montar
+  useEffect(() => {
+    const a = Math.floor(Math.random() * 8) + 2; // 2-9
+    const b = Math.floor(Math.random() * 8) + 2; // 2-9
+    setCaptcha({ a, b, answer: '' });
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 8);
@@ -142,6 +153,11 @@ export default function Register() {
       return rest;
     });
     setError(null);
+    if (name === 'captcha') {
+      setCaptcha((prev) => ({ ...prev, answer: value }));
+      setCaptchaError(null);
+      return;
+    }
     setForm((prev) => ({ ...prev, [name]: value }));
 
     // Calcular fuerza de contraseña
@@ -225,6 +241,14 @@ export default function Register() {
       errors.phone = 'Teléfono inválido (10-15 dígitos)';
     }
 
+    // Validación de captcha
+    if (String(Number(captcha.answer)) !== String(captcha.a + captcha.b)) {
+      setCaptchaError('Respuesta incorrecta');
+      errors.captcha = 'Respuesta incorrecta';
+    } else {
+      setCaptchaError(null);
+    }
+
     return errors;
   };
 
@@ -232,14 +256,20 @@ export default function Register() {
     e.preventDefault();
     setError(null);
     setFieldErrors({});
-    
+
     // Validar formulario
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setFieldErrors(errs);
-      const firstKey = Object.keys(errs)[0];
-      const el = document.querySelector(`[name="${firstKey}"]`);
-      if (el) el.focus();
+      // Si hay error de captcha, enfocar el campo captcha
+      if (errs.captcha) {
+        const el = document.querySelector(`[name="captcha"]`);
+        if (el) el.focus();
+      } else {
+        const firstKey = Object.keys(errs)[0];
+        const el = document.querySelector(`[name="${firstKey}"]`);
+        if (el) el.focus();
+      }
       showToast('Por favor corrige los errores del formulario', 'error');
       return;
     }
@@ -277,7 +307,6 @@ export default function Register() {
       if (resp) {
         if (typeof resp === 'object' && !Array.isArray(resp)) {
           const fl = {};
-          
           // Procesar errores del backend
           if (resp.detail) {
             errorMessage = String(resp.detail);
@@ -612,6 +641,35 @@ export default function Register() {
               {fieldErrors.passwordConfirm && (
                 <small className="field-error" id="passwordConfirm-error" role="alert">
                   ⚠️ {fieldErrors.passwordConfirm}
+                </small>
+              )}
+            </div>
+
+
+            {/* Captcha matemático simple */}
+            <div style={styles.field}>
+              <label style={styles.label} htmlFor="captcha">
+                Captcha: ¿Cuánto es {captcha.a} + {captcha.b}? *
+              </label>
+              <input
+                name="captcha"
+                id="captcha"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                value={captcha.answer}
+                onChange={onChange}
+                style={styles.input}
+                className={`input-field ${captchaError ? 'form-input-error' : ''}`}
+                disabled={loading}
+                placeholder="Respuesta"
+                required
+                aria-invalid={!!captchaError}
+                aria-describedby={captchaError ? 'captcha-error' : undefined}
+              />
+              {captchaError && (
+                <small className="field-error" id="captcha-error" role="alert">
+                  ⚠️ {captchaError}
                 </small>
               )}
             </div>

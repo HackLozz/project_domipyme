@@ -44,6 +44,15 @@ export default function ShopCreate() {
     if (!slugEdited) setSlug(slugify(name));
   }, [name, slugEdited]);
 
+  // Validación de slug en tiempo real
+  useEffect(() => {
+    if (slug && !/^[a-z0-9-]{2,}$/.test(slug)) {
+      setError('El slug solo puede contener minúsculas, números y guiones, mínimo 2 caracteres.');
+    } else {
+      setError(null);
+    }
+  }, [slug]);
+
   /** LOGO HANDLER */
   const onLogoChange = (file) => {
     setError(null);
@@ -55,9 +64,14 @@ export default function ShopCreate() {
       return;
     }
 
-    const max = 3 * 1024 * 1024;
+    const max = 2 * 1024 * 1024; // 2MB
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Solo se permiten imágenes PNG, JPG o WEBP.');
+      return;
+    }
     if (file.size > max) {
-      setError('El logo supera el tamaño máximo de 3 MB.');
+      setError('El logo supera el tamaño máximo de 2 MB.');
       return;
     }
 
@@ -70,10 +84,17 @@ export default function ShopCreate() {
     reader.readAsDataURL(file);
   };
 
+  /** Sanitización básica para nombre y descripción */
+  function sanitizeText(input) {
+    if (!input) return '';
+    return input.replace(/<[^>]*>?/gm, '').replace(/["'`]/g, '');
+  }
+
   /** VALIDACIONES */
   const validate = () => {
     if (!name.trim()) return 'El nombre es requerido.';
     if (!slug.trim()) return 'El slug no puede estar vacío.';
+    if (!/^[a-z0-9-]{2,}$/.test(slug)) return 'El slug solo puede contener minúsculas, números y guiones, mínimo 2 caracteres.';
     if (desc.length > 300) return 'La descripción no puede superar 300 caracteres.';
     return null;
   };
@@ -94,8 +115,8 @@ export default function ShopCreate() {
 
     try {
       const payload = {
-        name: name.trim(),
-        description: desc.trim(),
+        name: sanitizeText(name.trim()),
+        description: sanitizeText(desc.trim()),
         slug: slugify(slug),
         address: address.trim(),
         phone: phone.trim(),

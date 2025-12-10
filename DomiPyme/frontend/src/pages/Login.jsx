@@ -31,6 +31,8 @@ export default function Login() {
   const [isLocked, setIsLocked] = useState(false);
   const [lockoutTime, setLockoutTime] = useState(0);
   const [captchaRequired, setCaptchaRequired] = useState(false); // Hook para CAPTCHA
+  const [captcha, setCaptcha] = useState({ a: 0, b: 0, answer: '' });
+  const [captchaError, setCaptchaError] = useState(null);
 
   const isMountedRef = useRef(true);
   const nav = useNavigate();
@@ -51,6 +53,16 @@ export default function Login() {
       isMountedRef.current = false;
     };
   }, [auth.user, from, nav]);
+
+  // Generar captcha matemático cuando se requiera
+  useEffect(() => {
+    if (captchaRequired) {
+      const a = Math.floor(Math.random() * 8) + 2;
+      const b = Math.floor(Math.random() * 8) + 2;
+      setCaptcha({ a, b, answer: '' });
+      setCaptchaError(null);
+    }
+  }, [captchaRequired]);
 
   // Validación en tiempo real del email
   useEffect(() => {
@@ -104,7 +116,17 @@ export default function Login() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (loading || isLocked || captchaRequired) return;
+    if (loading || isLocked) return;
+    // Si requiere captcha, validar primero
+    if (captchaRequired) {
+      if (String(Number(captcha.answer)) !== String(captcha.a + captcha.b)) {
+        setCaptchaError('Respuesta incorrecta');
+        return;
+      } else {
+        setCaptchaRequired(false);
+        setCaptchaError(null);
+      }
+    }
     // Validaciones previas
     if (!email || emailError) {
       setError('Ingrese un email válido');
@@ -115,6 +137,8 @@ export default function Login() {
       return;
     }
     setError(null);
+    setEmailError('');
+    setPasswordError('');
     setLoading(true);
     try {
       // Sugerencia: implementar bloqueo en backend y/o CAPTCHA
@@ -128,6 +152,8 @@ export default function Login() {
       }
     } catch (err) {
       let msg = 'Credenciales inválidas';
+      let emailFieldError = '';
+      let passwordFieldError = '';
       // Mejor gestión de errores de red y backend
       if (err?.response) {
         const status = err.response.status;
@@ -138,12 +164,26 @@ export default function Login() {
           msg = 'Demasiados intentos. Complete el CAPTCHA.';
         } else {
           const data = err.response.data;
-          msg = data.detail || data.error || (typeof data === 'string' ? data : msg);
+          // Detectar errores específicos de campos
+          if (data.email) {
+            emailFieldError = typeof data.email === 'string' ? data.email : (Array.isArray(data.email) ? data.email.join(' ') : 'Email inválido');
+            msg = emailFieldError;
+          }
+          if (data.password) {
+            passwordFieldError = typeof data.password === 'string' ? data.password : (Array.isArray(data.password) ? data.password.join(' ') : 'Contraseña inválida');
+            msg = passwordFieldError;
+          }
+          if (!emailFieldError && !passwordFieldError) {
+            msg = data.detail || data.error || (typeof data === 'string' ? data : msg);
+          }
         }
       } else if (err?.message) {
         msg = err.message;
       }
       if (isMountedRef.current) {
+        // Feedback visual en campos
+        if (emailFieldError) setEmailError(emailFieldError);
+        if (passwordFieldError) setPasswordError(passwordFieldError);
         // Ya no bloqueamos el login por cuenta inactiva. Mostramos advertencia si el usuario no está verificado en el dashboard.
         const newAttempts = failedAttempts + 1;
         setFailedAttempts(newAttempts);
@@ -171,14 +211,14 @@ export default function Login() {
         <div className="login-header">
           <div className="login-logo" aria-hidden="true">🔐</div>
           <h2 className="login-title" id="login-title">Iniciar sesión</h2>
-          <p className="login-subtitle">Accede a tu cuenta para gestionar tiendas, pedidos y ventas.</p>
+          <p className="login-subtitle" id="login-subtitle">Accede a tu cuenta para gestionar tiendas, pedidos y ventas.</p>
         </div>
 
-        <form onSubmit={submit} className="login-form" aria-describedby="login-subtitle">
+        <form onSubmit={submit} className="login-form" aria-describedby="login-subtitle" role="form">
           <div className="form-group">
             <label className="form-label form-label-required" htmlFor="email">
               Email
-              {email && !emailError && <span className="validation-success">✓</span>}
+              {email && !emailError && <span className="validation-success" aria-live="polite">✓</span>}
             </label>
             <input
               id="email"
@@ -192,11 +232,12 @@ export default function Login() {
               disabled={loading || isLocked}
               aria-required="true"
               aria-invalid={!!emailError}
-              aria-describedby={emailError ? 'email-error' : undefined}
+              aria-describedby={emailError ? 'email-error' : 'email-hint'}
               placeholder="tu@email.com"
             />
+            <span id="email-hint" className="visually-hidden">Introduce tu correo electrónico</span>
             {emailError && (
-              <span id="email-error" className="field-error" role="alert">
+              <span id="email-error" className="field-error" role="alert" aria-live="assertive">
                 ⚠️ {emailError}
               </span>
             )}
@@ -205,7 +246,7 @@ export default function Login() {
           <div className="form-group">
             <label className="form-label form-label-required" htmlFor="password">
               Contraseña
-              {password && !passwordError && <span className="validation-success">✓</span>}
+              {password && !passwordError && <span className="validation-success" aria-live="polite">✓</span>}
             </label>
             <div className="input-wrapper">
               <input
@@ -221,9 +262,10 @@ export default function Login() {
                 disabled={loading || isLocked}
                 aria-required="true"
                 aria-invalid={!!passwordError}
-                aria-describedby={passwordError ? 'password-error' : undefined}
+                aria-describedby={passwordError ? 'password-error' : 'password-hint'}
                 placeholder="••••••••"
               />
+              <span id="password-hint" className="visually-hidden">Introduce tu contraseña</span>
               <span 
                 className="input-icon" 
                 onClick={() => !isLocked && setShowPw(v => !v)}
@@ -235,12 +277,12 @@ export default function Login() {
               </span>
             </div>
             {passwordError && (
-              <span id="password-error" className="field-error" role="alert">
+              <span id="password-error" className="field-error" role="alert" aria-live="assertive">
                 ⚠️ {passwordError}
               </span>
             )}
             {password && !passwordError && (
-              <div className="password-strength">
+              <div className="password-strength" aria-live="polite">
                 <div className="password-strength-bar">
                   <div 
                     className={`password-strength-fill ${password.length >= 12 ? 'strong' : password.length >= 8 ? 'medium' : 'weak'}`}
@@ -277,21 +319,21 @@ export default function Login() {
           </div>
 
           {error && (
-            <div role="alert" className={`error-message ${isLocked ? 'error-locked' : ''}`}>
+            <div role="alert" className={`error-message ${isLocked ? 'error-locked' : ''}`} aria-live="assertive">
               <span>{isLocked ? '🔒' : '⚠️'}</span>
               <span>{error}</span>
             </div>
           )}
 
           {isLocked && lockoutTime > 0 && (
-            <div className="lockout-timer">
+            <div className="lockout-timer" aria-live="polite">
               <span className="lockout-icon">⏱️</span>
               <span>Cuenta bloqueada. Reintenta en <strong>{lockoutTime}s</strong></span>
             </div>
           )}
 
           {failedAttempts > 0 && failedAttempts < 5 && !isLocked && (
-            <div className="warning-message">
+            <div className="warning-message" aria-live="polite">
               <span>⚠️</span>
               <span>Intento {failedAttempts} de 5. Intenta de nuevo.</span>
             </div>
@@ -302,6 +344,7 @@ export default function Login() {
             className={`submit-button ${isLocked ? 'submit-button-locked' : ''}`}
             disabled={loading || isLocked || !email || password.length < 6 || !!emailError || !!passwordError}
             aria-busy={loading}
+            aria-label="Entrar al sistema"
           >
             {loading ? (
               <>
@@ -315,7 +358,7 @@ export default function Login() {
             )}
           </button>
 
-          <div className="login-divider">
+          <div className="login-divider" aria-hidden="true">
             <span>o</span>
           </div>
 
@@ -346,16 +389,39 @@ export default function Login() {
           </div>
         )}
 
-        {/* Hook para CAPTCHA, sugerencia de integración */}
+        {/* Captcha matemático simple */}
         {captchaRequired && (
           <div className="captcha-container" role="alert" style={{marginTop:20, padding:16, background:'#fef3c7', border:'2px solid #fbbf24', borderRadius:10}}>
-            <span>Por favor, completa el CAPTCHA para continuar.</span>
-            {/* Ejemplo de integración: */}
+            <span>Por favor, resuelve el CAPTCHA para continuar.</span>
             <div style={{marginTop:12}}>
-              <input type="text" placeholder="Escribe '1234' para continuar" aria-label="Captcha" style={{padding:8, borderRadius:6, border:'1px solid #ccc'}} />
-              <Button style={{marginLeft:8}} onClick={()=>setCaptchaRequired(false)}>Validar</Button>
+              <label htmlFor="captcha" style={{marginRight:8}}>
+                ¿Cuánto es {captcha.a} + {captcha.b}?
+              </label>
+              <input
+                id="captcha"
+                name="captcha"
+                type="text"
+                inputMode="numeric"
+                autoComplete="off"
+                value={captcha.answer}
+                onChange={e => { setCaptchaError(null); setCaptcha(c => ({ ...c, answer: e.target.value })); }}
+                style={{padding:8, borderRadius:6, border: captchaError ? '2px solid #dc2626' : '1px solid #ccc', width:80}}
+                aria-label="Captcha"
+                aria-invalid={!!captchaError}
+                aria-describedby={captchaError ? 'captcha-error' : undefined}
+                disabled={loading}
+                placeholder="Respuesta"
+              />
+              <Button style={{marginLeft:8}} type="submit" disabled={loading || !captcha.answer}>
+                Validar
+              </Button>
             </div>
-            <div style={{fontSize:12, color:'#92400e', marginTop:8}}>Este es un ejemplo de CAPTCHA. Integra Google reCAPTCHA para producción.</div>
+            {captchaError && (
+              <div id="captcha-error" style={{fontSize:13, color:'#dc2626', marginTop:8}} role="alert">
+                ⚠️ {captchaError}
+              </div>
+            )}
+            <div style={{fontSize:12, color:'#92400e', marginTop:8}}>Este es un captcha simple. Para producción, considera Google reCAPTCHA.</div>
           </div>
         )}
       </div>

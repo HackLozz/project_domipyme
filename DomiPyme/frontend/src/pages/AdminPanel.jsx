@@ -129,41 +129,49 @@ export default function AdminPanel() {
   // Los datos ya vienen filtrados del backend
 
   return (
-    <div style={styles.page} className={mounted ? 'page-enter' : ''}>
+    <div style={{...styles.page, background: 'linear-gradient(120deg, #f0f4ff 0%, #f8fafc 100%)', minHeight: '100vh'}} className={mounted ? 'page-enter' : ''}>
       <style>{`
         .page-enter { animation: pageEnter 320ms ease both; }
         @keyframes pageEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .card { transition: transform 160ms ease, box-shadow 160ms ease; }
         .card:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(2,6,23,0.10); }
         .row:hover { background: rgba(249,250,251,0.7); }
+        @media (max-width: 900px) {
+          .admin-grid { grid-template-columns: 1fr !important; }
+          .admin-aside { margin-top: 24px !important; }
+        }
+        @media (max-width: 600px) {
+          .admin-stats { grid-template-columns: 1fr 1fr !important; }
+          .admin-table th, .admin-table td { font-size: 12px !important; padding: 6px 4px !important; }
+        }
       `}</style>
 
-      <header style={styles.header}>
+      <header style={{...styles.header, paddingTop: 16, paddingBottom: 16}}>
         <div>
-          <h2 style={styles.h2}>Panel administrativo</h2>
-          <p style={styles.subtitle}>Gestiona tiendas, usuarios y productos de la plataforma</p>
+          <h1 style={{...styles.h2, fontSize: 30, color: '#1d3557', letterSpacing: '-1px'}}>Panel administrativo</h1>
+          <p style={{...styles.subtitle, fontSize: 16}}>Gestiona tiendas, usuarios y productos de la plataforma</p>
         </div>
       </header>
 
       {error && <div style={styles.errorBox}>{error}</div>}
 
-      <section style={styles.statsGrid}>
-        <div style={styles.statCard} className="card">
+      <section style={{...styles.statsGrid, marginBottom: 24}} className="admin-stats">
+        <div style={{...styles.statCard, background: 'linear-gradient(120deg, #e0e7ff 0%, #fff 100%)'}} className="card">
           <div style={styles.statIcon}>🏪</div>
           <div style={styles.statValue}>{fetching ? '...' : (stats?.shops?.total ?? shops.length)}</div>
           <div style={styles.statLabel}>Tiendas</div>
         </div>
-        <div style={styles.statCard} className="card">
+        <div style={{...styles.statCard, background: 'linear-gradient(120deg, #f1f5f9 0%, #fff 100%)'}} className="card">
           <div style={styles.statIcon}>👥</div>
           <div style={styles.statValue}>{fetching ? '...' : (stats?.users?.total ?? users.length)}</div>
           <div style={styles.statLabel}>Usuarios</div>
         </div>
-        <div style={styles.statCard} className="card">
+        <div style={{...styles.statCard, background: 'linear-gradient(120deg, #fef9c3 0%, #fff 100%)'}} className="card">
           <div style={styles.statIcon}>📦</div>
           <div style={styles.statValue}>{fetching ? '...' : (stats?.products?.total ?? products.length)}</div>
           <div style={styles.statLabel}>Productos</div>
         </div>
-        <div style={styles.statCard} className="card">
+        <div style={{...styles.statCard, background: 'linear-gradient(120deg, #dcfce7 0%, #fff 100%)'}} className="card">
           <div style={styles.statIcon}>🟢</div>
           <div style={styles.statValue}>{fetching ? '...' : (stats?.users?.active ?? users.filter(u=>u.is_active).length)}</div>
           <div style={styles.statLabel}>Usuarios activos</div>
@@ -171,9 +179,9 @@ export default function AdminPanel() {
       </section>
 
       {/* Mini gráficos: Órdenes hoy vs últimos 7 días, y revenue hoy vs total */}
-      <section style={{ ...styles.tableCard, marginBottom: 12 }} className="card">
+      <section style={{ ...styles.tableCard, marginBottom: 20, background: 'linear-gradient(120deg, #f0fdf4 0%, #fff 100%)' }} className="card">
         <div style={styles.sectionHead}>
-          <h3 style={styles.h3}>Actividad reciente</h3>
+          <h2 style={{...styles.h3, fontSize: 18, color: '#0e7490'}}>Actividad reciente</h2>
           <div style={{ color: '#6b7280', fontSize: 12 }}>
             {stats?.generated_at ? new Date(stats.generated_at).toLocaleString('es-CO') : ''}
           </div>
@@ -189,11 +197,11 @@ export default function AdminPanel() {
                 return (
                   <>
                     <div style={{ flex: 1 }}>
-                      <div style={{ height: `${(today/max)*100}%`, background: '#3b82f6', borderRadius: 8 }} />
+                      <div style={{ height: `${(today/max)*100}%`, background: '#3b82f6', borderRadius: 8, transition: 'height 0.4s' }} />
                       <div style={{ textAlign: 'center', marginTop: 6, fontSize: 12 }}>Hoy ({today})</div>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ height: `${(last7/max)*100}%`, background: '#0ea5e9', borderRadius: 8 }} />
+                      <div style={{ height: `${(last7/max)*100}%`, background: '#0ea5e9', borderRadius: 8, transition: 'height 0.4s' }} />
                       <div style={{ textAlign: 'center', marginTop: 6, fontSize: 12 }}>Últimos 7 ({last7})</div>
                     </div>
                   </>
@@ -211,11 +219,11 @@ export default function AdminPanel() {
                 return (
                   <>
                     <div style={{ flex: 1 }}>
-                      <div style={{ height: `${(today/max)*100}%`, background: '#22c55e', borderRadius: 8 }} />
+                      <div style={{ height: `${(today/max)*100}%`, background: '#22c55e', borderRadius: 8, transition: 'height 0.4s' }} />
                       <div style={{ textAlign: 'center', marginTop: 6, fontSize: 12 }}>Hoy</div>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ height: `${(total/max)*100}%`, background: '#10b981', borderRadius: 8 }} />
+                      <div style={{ height: `${(total/max)*100}%`, background: '#10b981', borderRadius: 8, transition: 'height 0.4s' }} />
                       <div style={{ textAlign: 'center', marginTop: 6, fontSize: 12 }}>Total</div>
                     </div>
                   </>
@@ -226,19 +234,19 @@ export default function AdminPanel() {
         </div>
       </section>
 
-      <main style={styles.grid}>
+      <main style={{...styles.grid, marginTop: 24}} className="admin-grid">
         <section style={styles.section}>
           <div style={styles.sectionHead}>
-            <h3 style={styles.h3}>Tiendas</h3>
+            <h2 style={{...styles.h3, fontSize: 17, color: '#1d3557'}}>Tiendas</h2>
             <input value={searchShop} onChange={(e)=>setSearchShop(e.target.value)} placeholder="Buscar tienda..." style={styles.search} />
           </div>
-          <div style={styles.tableCard} className="card">
+          <div style={{...styles.tableCard, overflowX: 'auto'}} className="card admin-table">
             {fetching ? (
               <div style={styles.loading}>Cargando tiendas...</div>
             ) : shops.length === 0 ? (
               <div style={styles.empty}>No hay tiendas</div>
             ) : (
-              <table style={styles.table}>
+              <table style={{...styles.table, minWidth: 600}}>
                 <thead>
                   <tr>
                     <th style={styles.th}>ID</th>
@@ -256,10 +264,10 @@ export default function AdminPanel() {
                       <td style={styles.td}><code style={styles.code}>{s.slug}</code></td>
                       <td style={styles.td}>{s.city || '—'}</td>
                       <td style={styles.td}>
-                        <a href={`/shop/${encodeURIComponent(s.slug || s.id)}`} target="_blank" rel="noreferrer" style={styles.btnSmall}>Ver</a>
-                        <button style={styles.btnSmall} onClick={()=>handleShopEdit(s)}>Editar</button>
-                        <button style={{...styles.btnSmall, color:'#991b1b'}} onClick={()=>handleShopDelete(s)}>Eliminar</button>
-                        <button style={styles.btnSmall} onClick={()=>handleShopToggle(s)}>{s.active ? 'Desactivar' : 'Activar'}</button>
+                        <a href={`/shop/${encodeURIComponent(s.slug || s.id)}`} target="_blank" rel="noreferrer" style={{...styles.btnSmall, background:'#e0e7ff'}}>Ver</a>
+                        <button style={{...styles.btnSmall, background:'#f1f5f9'}} onClick={()=>handleShopEdit(s)}>Editar</button>
+                        <button style={{...styles.btnSmall, color:'#fff', background:'#ef4444'}} onClick={()=>handleShopDelete(s)}>Eliminar</button>
+                        <button style={{...styles.btnSmall, background: s.active ? '#fef9c3' : '#dcfce7', color: '#1d3557'}} onClick={()=>handleShopToggle(s)}>{s.active ? 'Desactivar' : 'Activar'}</button>
                       </td>
                     </tr>
                   ))}
@@ -274,10 +282,10 @@ export default function AdminPanel() {
           </div>
         </section>
 
-        <aside style={styles.aside}>
-          <div style={styles.tableCard} className="card">
+        <aside style={{...styles.aside, marginTop: 0}} className="admin-aside">
+          <div style={{...styles.tableCard, overflowX: 'auto'}} className="card">
             <div style={styles.sectionHead}>
-              <h3 style={styles.h3}>Usuarios</h3>
+              <h2 style={{...styles.h3, fontSize: 17, color: '#1d3557'}}>Usuarios</h2>
               <input value={searchUser} onChange={(e)=>setSearchUser(e.target.value)} placeholder="Buscar usuario..." style={styles.search} />
             </div>
             {fetching ? (
@@ -293,9 +301,9 @@ export default function AdminPanel() {
                       <div style={styles.itemMeta}>{u.is_staff ? 'Admin' : (u.role || 'Cliente')}</div>
                     </div>
                     <span style={u.is_active ? styles.badgeActive : styles.badgeInactive}>{u.is_active ? 'Activo' : 'Inactivo'}</span>
-                    <button style={styles.btnSmall} onClick={()=>handleUserEdit(u)}>Editar</button>
-                    <button style={{...styles.btnSmall, color:'#991b1b'}} onClick={()=>handleUserDelete(u)}>Eliminar</button>
-                    <button style={styles.btnSmall} onClick={()=>handleUserToggle(u)}>{u.is_active ? 'Desactivar' : 'Activar'}</button>
+                    <button style={{...styles.btnSmall, background:'#f1f5f9'}} onClick={()=>handleUserEdit(u)}>Editar</button>
+                    <button style={{...styles.btnSmall, color:'#fff', background:'#ef4444'}} onClick={()=>handleUserDelete(u)}>Eliminar</button>
+                    <button style={{...styles.btnSmall, background: u.is_active ? '#fef9c3' : '#dcfce7', color: '#1d3557'}} onClick={()=>handleUserToggle(u)}>{u.is_active ? 'Desactivar' : 'Activar'}</button>
                   </li>
                 ))}
               </ul>
@@ -307,9 +315,9 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          <div style={{ ...styles.tableCard, marginTop: 12 }} className="card">
+          <div style={{ ...styles.tableCard, marginTop: 12, overflowX: 'auto' }} className="card">
             <div style={styles.sectionHead}>
-              <h3 style={styles.h3}>Productos</h3>
+              <h2 style={{...styles.h3, fontSize: 17, color: '#1d3557'}}>Productos</h2>
               <input value={searchProduct} onChange={(e)=>setSearchProduct(e.target.value)} placeholder="Buscar producto..." style={styles.search} />
             </div>
             {fetching ? (
@@ -325,9 +333,9 @@ export default function AdminPanel() {
                       <div style={styles.itemMeta}>{new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP'}).format(Number(p.price||0))}</div>
                     </div>
                     <span style={p.stock > 10 ? styles.badgeActive : (p.stock > 0 ? styles.badgeWarn : styles.badgeInactive)}>{p.stock ?? 0}</span>
-                    <button style={styles.btnSmall} onClick={()=>handleProductEdit(p)}>Editar</button>
-                    <button style={{...styles.btnSmall, color:'#991b1b'}} onClick={()=>handleProductDelete(p)}>Eliminar</button>
-                    <button style={styles.btnSmall} onClick={()=>handleProductToggle(p)}>{p.active ? 'Desactivar' : 'Activar'}</button>
+                    <button style={{...styles.btnSmall, background:'#f1f5f9'}} onClick={()=>handleProductEdit(p)}>Editar</button>
+                    <button style={{...styles.btnSmall, color:'#fff', background:'#ef4444'}} onClick={()=>handleProductDelete(p)}>Eliminar</button>
+                    <button style={{...styles.btnSmall, background: p.active ? '#fef9c3' : '#dcfce7', color: '#1d3557'}} onClick={()=>handleProductToggle(p)}>{p.active ? 'Desactivar' : 'Activar'}</button>
                   </li>
                 ))}
               </ul>

@@ -22,11 +22,29 @@ const CARD_ELEMENT_OPTIONS = {
   hidePostalCode: true,
 };
 
+
 export default function StripeCheckoutForm({ orderId, amount, onSuccess, onError }) {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [cardError, setCardError] = useState(null);
+
+  // Validación Luhn para tarjeta
+  function luhnCheck(cardNumber) {
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = cardNumber.length - 1; i >= 0; i--) {
+      let digit = parseInt(cardNumber.charAt(i));
+      if (shouldDouble) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+    return sum % 10 === 0;
+  }
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -36,8 +54,21 @@ export default function StripeCheckoutForm({ orderId, amount, onSuccess, onError
       return;
     }
 
-    setLoading(true);
     setError(null);
+    setCardError(null);
+
+    // Validación de formato de tarjeta, fecha y CVC
+    const cardElement = elements.getElement(CardElement);
+    if (cardElement) {
+      const cardValue = cardElement._complete ? cardElement : null;
+      // Stripe CardElement no expone el número, pero sí el estado de completitud
+      if (!cardElement._complete) {
+        setCardError('Completa todos los campos de la tarjeta correctamente.');
+        return;
+      }
+    }
+
+    setLoading(true);
 
     try {
       // Step 1: Create payment intent on backend
@@ -93,6 +124,11 @@ export default function StripeCheckoutForm({ orderId, amount, onSuccess, onError
         </div>
       </div>
 
+      {cardError && (
+        <div className="error-message" style={{ marginTop: '16px', color: '#dc2626' }}>
+          {cardError}
+        </div>
+      )}
       {error && (
         <div className="error-message" style={{ marginTop: '16px' }}>
           {error}

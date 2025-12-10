@@ -106,12 +106,12 @@ export default function Catalog() {
   );
 
   return (
-    <div style={styles.container}>
+    <main style={styles.container} role="main" aria-label="Catálogo de comercios">
       {/* estilos CSS para animaciones y skeletons */}
       <style>{`
         .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; list-style: none; padding: 0; margin: 0; }
         .catalog-card {
-          background: white;
+          background: #fff;
           border-radius: 10px;
           box-shadow: 0 1px 4px rgba(0,0,0,0.06);
           overflow: hidden;
@@ -119,7 +119,7 @@ export default function Catalog() {
           transform-origin: center;
           transition: transform ${ANIM_DURATION}ms cubic-bezier(.2,.9,.2,1), box-shadow ${ANIM_DURATION}ms ease;
         }
-        .catalog-card:hover { transform: translateY(-6px) scale(1.01); box-shadow: 0 8px 20px rgba(3,7,18,0.08); }
+        .catalog-card:hover { transform: translateY(-6px) scale(1.01); box-shadow: 0 8px 20px rgba(3,7,18,0.10); }
         .catalog-card .imageWrap { width:100%; height:140px; overflow:hidden; background:#f6f7f9; display:block; }
         .catalog-card img { width:100%; height:100%; object-fit:cover; display:block; transition: transform 450ms ease; }
         .catalog-card:hover img { transform: scale(1.03); }
@@ -147,26 +147,33 @@ export default function Catalog() {
           from { background-position: 200% 0; }
           to { background-position: -200% 0; }
         }
+        /* Visually hidden label for accessibility */
+        .visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
       `}</style>
 
       <header style={styles.header}>
-        <h2 style={styles.title}>Catálogo de Comercios</h2>
+        <h1 style={styles.title} tabIndex={-1}>Catálogo de Comercios</h1>
 
         <div style={styles.controls}>
+          <label htmlFor="catalog-search" className="visually-hidden">Buscar comercios</label>
           <input
+            id="catalog-search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Buscar por nombre o descripción..."
             style={styles.search}
             aria-label="Buscar comercios"
+            autoComplete="off"
           />
-          <button onClick={handleReload} style={styles.reloadBtn}>Recargar</button>
+          <button onClick={handleReload} style={styles.reloadBtn} aria-label="Recargar catálogo" title="Recargar catálogo">
+            Recargar
+          </button>
         </div>
       </header>
 
       {loading && (
         // skeleton grid
-        <ul className="catalog-grid" style={{ marginTop: 8 }}>
+        <ul className="catalog-grid" style={{ marginTop: 8 }} aria-busy="true" aria-live="polite">
           {Array.from({ length: 6 }).map((_, i) => (
             <li key={i} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #eef2f7', background:'#fff' }}>
               <div style={{ height: 140 }} className="skeleton" />
@@ -180,14 +187,14 @@ export default function Catalog() {
         </ul>
       )}
 
-      {!loading && error && <p style={{ ...styles.message, color: '#ff6b6b' }}>{error}</p>}
+      {!loading && error && <p style={{ ...styles.message, color: '#ff6b6b' }} role="alert">{error}</p>}
 
       {!loading && !error && filtered.length === 0 && (
-        <p style={styles.message}>No se encontraron comercios.</p>
+        <p style={styles.message} role="status">No se encontraron comercios.</p>
       )}
 
       {!loading && !error && filtered.length > 0 && (
-        <ul className="catalog-grid" style={{ marginTop: 8 }}>
+        <ul className="catalog-grid" style={{ marginTop: 8 }} aria-live="polite" aria-label="Lista de comercios">
           {filtered.map((s, idx) => {
             const slugOrId = s.slug || s.id;
             const shopUrl = `/shop/${slugOrId}`;
@@ -203,20 +210,24 @@ export default function Catalog() {
                   // animar con stagger usando animationDelay
                   animationDelay: s.added ? `${delay}ms` : '0ms',
                 }}
+                tabIndex={0}
+                aria-label={`Comercio: ${s.name || 'Nombre no disponible'}`}
               >
-                <Link to={shopUrl} style={styles.cardLink}>
+                <Link to={shopUrl} style={styles.cardLink} tabIndex={0} aria-label={`Ver detalles de ${s.name || 'este comercio'}`}>
                   <article className="catalog-card" style={styles.card}>
-                    <div className="imageWrap" style={styles.imageWrap}>
-                      <img
-                        src={s.image || s.logo || placeholder}
-                        alt={s.name || 'Tienda'}
-                        style={styles.image}
-                        onError={(e) => (e.currentTarget.src = placeholder)}
-                      />
-                    </div>
+                    <header>
+                      <div className="imageWrap" style={styles.imageWrap}>
+                        <img
+                          src={s.image || s.logo || placeholder}
+                          alt={s.name ? `Logo de ${s.name}` : 'Tienda'}
+                          style={styles.image}
+                          onError={(e) => (e.currentTarget.src = placeholder)}
+                        />
+                      </div>
+                    </header>
 
                     <div style={styles.cardBody}>
-                      <h3 style={styles.shopName}>{s.name || 'Nombre no disponible'}</h3>
+                      <h2 style={styles.shopName}>{s.name || 'Nombre no disponible'}</h2>
                       {s.description ? (
                         <p style={styles.desc}>{sanitizeText(s.description)}</p>
                       ) : (
@@ -235,7 +246,7 @@ export default function Catalog() {
           })}
         </ul>
       )}
-    </div>
+    </main>
   );
 }
 

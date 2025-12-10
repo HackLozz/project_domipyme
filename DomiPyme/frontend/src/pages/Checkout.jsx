@@ -1,5 +1,11 @@
 // src/pages/Checkout.jsx
 import React, { useState, useEffect } from 'react';
+// Sanitización básica para evitar XSS en notas
+function sanitizeNotes(input) {
+  if (!input) return '';
+  // Elimina etiquetas HTML y caracteres peligrosos
+  return input.replace(/<[^>]*>?/gm, '').replace(/["'`]/g, '');
+}
 import { useNavigate } from 'react-router-dom';
 import { Elements } from '@stripe/react-stripe-js';
 import { useCart } from '../context/CartContext';
@@ -8,6 +14,7 @@ import getStripe from '../config/stripe';
 import api from '../components/Api';
 import { showToast } from '../components/Toast';
 import './Checkout.css';
+
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -28,7 +35,10 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [orderId, setOrderId] = useState(null);
-  const [step, setStep] = useState('address'); // 'address' | 'payment'
+  const [step, setStep] = useState('address'); // 'address' | 'review' | 'payment'
+
+  // Nuevo: paso de confirmación
+  const [reviewConfirmed, setReviewConfirmed] = useState(false);
 
   // Pricing calculations
   const subtotal = getSubtotal();
@@ -53,17 +63,22 @@ export default function Checkout() {
     return null;
   };
 
-  const handleContinueToPayment = async () => {
+  // Paso 1: continuar a revisión
+  const handleContinueToReview = () => {
     const addressError = validateAddress();
     if (addressError) {
       setError(addressError);
       showToast(addressError, 'error');
       return;
     }
+    setError(null);
+    setStep('review');
+  };
 
+  // Paso 2: confirmar y crear orden
+  const handleConfirmAndContinueToPayment = async () => {
     setLoading(true);
     setError(null);
-
     try {
       showToast('Creando orden...', 'info', 2000);
       // Create order with shipping address
@@ -73,7 +88,7 @@ export default function Checkout() {
           qty: item.quantity,
         })),
         shipping_address: shippingAddress,
-        notes,
+        notes: sanitizeNotes(notes),
       };
 
       const { data } = await api.post('/orders/', payload);
@@ -116,11 +131,14 @@ export default function Checkout() {
       <div className="checkout-header">
         <h1>Checkout</h1>
         <div className="checkout-steps">
-          <div className={`step ${step === 'address' ? 'active' : step === 'payment' ? 'completed' : ''}`}>
+          <div className={`step ${step === 'address' ? 'active' : step !== 'address' ? 'completed' : ''}`}>
             1. Dirección
           </div>
+          <div className={`step ${step === 'review' ? 'active' : step === 'payment' ? 'completed' : ''}`}>
+            2. Revisión
+          </div>
           <div className={`step ${step === 'payment' ? 'active' : ''}`}>
-            2. Pago
+            3. Pago
           </div>
         </div>
       </div>
@@ -132,7 +150,7 @@ export default function Checkout() {
       )}
 
       <div className="checkout-content">
-        {step === 'address' ? (
+        {step === 'address' && (
           <div className="checkout-form">
             <div className="form-section">
               <h2>Dirección de Envío</h2>
@@ -200,15 +218,63 @@ export default function Checkout() {
               </div>
 
               <button
-                onClick={handleContinueToPayment}
+                onClick={handleContinueToReview}
                 disabled={loading}
                 className="btn btn-checkout"
               >
-                {loading ? 'Procesando...' : 'Continuar al Pago'}
+                {loading ? 'Procesando...' : 'Revisar y Confirmar'}
               </button>
             </div>
           </div>
-        ) : (
+        )}
+
+        {step === 'review' && (
+          <div className="checkout-form">
+            <div className="form-section">
+              <h2>Revisa tu orden</h2>
+              <div style={{ marginBottom: 16 }}>
+                <strong>Dirección de envío:</strong><br />
+                {shippingAddress.full_name}, {shippingAddress.phone}<br />
+                {shippingAddress.address_line1} {shippingAddress.address_line2 && `, ${shippingAddress.address_line2}`}<br />
+                {shippingAddress.city}, {shippingAddress.state}, {shippingAddress.postal_code}, {shippingAddress.country}
+              </div>
+              {notes && (
+                <div style={{ marginBottom: 16 }}>
+                  <strong>Notas:</strong> {notes}
+                </div>
+              )}
+              <div style={{ marginBottom: 16 }}>
+                <strong>Productos:</strong>
+                <ul>
+                  {cart?.items?.map((item) => (
+                    <li key={item.id}>
+                      {item.product.name} x {item.quantity} (${item.price_snapshot.toLocaleString('es-CO')} c/u)
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <strong>Total:</strong> ${total.toLocaleString('es-CO')}
+              </div>
+              <button
+                onClick={handleConfirmAndContinueToPayment}
+                disabled={loading}
+                className="btn btn-checkout"
+              >
+                {loading ? 'Procesando...' : 'Confirmar y Pagar'}
+              </button>
+              <button
+                onClick={() => setStep('address')}
+                className="btn btn-secondary"
+                style={{ marginLeft: 12 }}
+              >
+                Volver a Dirección
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'payment' && (
           <div className="checkout-form">
             <div className="form-section">
               <h2>Información de Pago</h2>
@@ -222,11 +288,11 @@ export default function Checkout() {
               </Elements>
 
               <button
-                onClick={() => setStep('address')}
+                onClick={() => setStep('review')}
                 className="btn btn-secondary"
                 style={{ marginTop: '16px' }}
               >
-                Volver a Dirección
+                Volver a Revisión
               </button>
             </div>
           </div>

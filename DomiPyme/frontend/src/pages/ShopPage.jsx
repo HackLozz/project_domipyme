@@ -237,7 +237,7 @@ export default function ShopPage() {
 
   if (loading) {
     return (
-      <div style={styles.container}>
+      <main style={styles.container} role="main" aria-busy="true" aria-label="Cargando tienda">
         <div style={styles.headerSkeleton}>
           <div style={styles.skelTitle} />
           <div style={styles.skelSubtitle} />
@@ -260,45 +260,45 @@ export default function ShopPage() {
           .skeleton { background: linear-gradient(90deg,#f3f4f6 0%, #efefef 50%, #f3f4f6 100%); background-size: 200% 100%; animation: shimmer 1200ms linear infinite; border-radius: 6px; }
           @keyframes shimmer { from { background-position: 200% 0 } to { background-position: -200% 0 } }
         `}</style>
-      </div>
+      </main>
     );
   }
 
   if (error) {
     return (
-      <div style={styles.container}>
-        <div style={styles.errBox}>
+      <main style={styles.container} role="main" aria-label="Error de tienda">
+        <div style={styles.errBox} role="alert">
           <div>{error}</div>
           <div style={{ marginTop: 10 }}>
-            <button onClick={() => window.location.reload()} style={styles.reloadBtn}>Reintentar</button>
-            <Link to="/catalog" style={styles.linkBtn}>Volver al catálogo</Link>
+            <button onClick={() => window.location.reload()} style={styles.reloadBtn} aria-label="Reintentar cargar tienda">Reintentar</button>
+            <Link to="/catalog" style={styles.linkBtn} aria-label="Volver al catálogo">Volver al catálogo</Link>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (!shop) {
-    return <div style={{ padding: 20 }}>Tienda no encontrada.</div>;
+    return <main style={{ padding: 20 }} role="main" aria-label="Tienda no encontrada">Tienda no encontrada.</main>;
   }
 
   return (
-    <div style={styles.container}>
+    <main style={styles.container} role="main" aria-label={`Tienda ${shop.name || ''}`}>
       <header style={styles.header}>
         <div>
-          <h2 style={styles.shopTitle}>{shop.name}</h2>
+          <h1 style={styles.shopTitle}>{shop.name}</h1>
           {shop.city && <div style={styles.shopMeta}>{shop.city} {shop.address ? `• ${shop.address}` : ''}</div>}
           {shop.description && <p style={styles.shopDesc}>{shop.description}</p>}
         </div>
 
         <div style={styles.headerActions}>
-          <Link to="/catalog" style={styles.linkBtn}>Volver al catálogo</Link>
-          <Link to={`/shop/${firstDefined(shop.slug, shop.id)}`} style={styles.primaryBtn}>Ver tienda</Link>
+          <Link to="/catalog" style={styles.linkBtn} aria-label="Volver al catálogo">Volver al catálogo</Link>
+          <Link to={`/shop/${firstDefined(shop.slug, shop.id)}`} style={styles.primaryBtn} aria-label="Ver tienda">Ver tienda</Link>
         </div>
       </header>
 
-      <main>
-        <h3 style={{ marginTop: 8 }}>Productos</h3>
+      <section aria-labelledby="productos-tienda">
+        <h2 id="productos-tienda" style={{ marginTop: 8 }}>Productos</h2>
         {products.length === 0 ? (
           <div style={styles.empty}>No hay productos disponibles.</div>
         ) : (
@@ -331,12 +331,12 @@ export default function ShopPage() {
                       <button
                         onClick={() => addToCart(p)}
                         style={isAdding ? styles.addingBtn : styles.addBtn}
-                        aria-label={`Agregar ${p.name} al carrito`}
+                        aria-label={`Agregar ${p.name || p.title || 'producto'} al carrito`}
                       >
                         {isAdding ? 'Añadido' : 'Agregar'}
                       </button>
 
-                      <Link to={`/product/${firstDefined(p.id, p.pk)}`} style={styles.viewBtn}>Ver</Link>
+                      <Link to={`/product/${firstDefined(p.id, p.pk)}`} style={styles.viewBtn} aria-label={`Ver detalles de ${p.name || p.title || 'producto'}`}>Ver</Link>
                     </div>
                   </div>
                 </li>
@@ -344,15 +344,15 @@ export default function ShopPage() {
             })}
           </ul>
         )}
-      </main>
+      </section>
 
-      {toast && <div style={styles.toast}>{toast}</div>}
+      {toast && <div style={styles.toast} aria-live="polite" role="status">{toast}</div>}
 
       <style>{`
         .product-card { transition: transform ${ANIM_MS}ms ease, box-shadow ${ANIM_MS}ms ease; }
         .product-card:hover { transform: translateY(-6px); box-shadow: 0 10px 26px rgba(2,6,23,0.06); }
       `}</style>
-    </div>
+    </main>
   );
 }
 
