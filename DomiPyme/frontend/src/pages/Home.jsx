@@ -132,110 +132,112 @@ export default function Home() {
 
   return (
     <div className="home">
-      {/* Hero Section */}
-      <div className="home__hero">
-        <div className="home__hero-content">
-          <h1>DomiPyme</h1>
-          <p>Apoya negocios locales — descubre tiendas y productos cerca de ti.</p>
-          <div className="home__hero-actions">
-            <Link to="/catalog" className="home__btn-primary">Explorar tiendas</Link>
-            <Link to="/about" className="home__btn-secondary">Cómo funciona</Link>
+      <main className="app-bg page-content responsive-grid" role="main" aria-label="Inicio">
+        {/* Hero Section */}
+        <div className="home__hero">
+          <div className="home__hero-content">
+            <h1>DomiPyme</h1>
+            <p>Apoya negocios locales — descubre tiendas y productos cerca de ti.</p>
+            <div className="home__hero-actions">
+              <Link to="/catalog" className="home__btn-primary">Explorar tiendas</Link>
+              <Link to="/about" className="home__btn-secondary">Cómo funciona</Link>
+            </div>
           </div>
-        </div>
-        <div className="home__hero-visual">{heroMiniSVG}</div>
-      </div>
-
-      {/* Featured Shops */}
-      <section className="home__section">
-        <h3>Tiendas destacadas</h3>
-        <div className="home__shops-grid">
-          {shops && shops.length > 0 ? (
-            shops.slice(0, 8).map((s) => (
-              <Link key={s.id} to={`/shop/${encodeURIComponent(s.slug || s.id)}`} className="home__shop-card">
-                <div className="home__shop-name">{s.name}</div>
-                <div className="home__shop-description">{sanitizeText(s.description)}</div>
-              </Link>
-            ))
-          ) : (
-            <div className="home__empty">No hay tiendas disponibles.</div>
-          )}
+          <div className="home__hero-visual">{heroMiniSVG}</div>
         </div>
 
-        {/* Recent Products */}
-        <h3 style={{ marginTop: 32 }}>Productos recientes</h3>
-        <div className="home__products-grid">
-          {products && products.length > 0 ? (
-            products.map((p) => (
-              <div key={p.id || p.pk || Math.random()} className="home__product-card">
-                <div className="home__product-image-wrap">
-                  <img
-                    src={p.image || p.photo || placeholderSVG}
-                    alt={p.name}
-                    className="home__product-image"
-                    onError={(e) => (e.currentTarget.src = placeholderSVG)}
-                  />
-                </div>
-                <div className="home__product-content">
-                  <div className="home__product-name">{p.name || p.title}</div>
-                  <div className="home__product-description">
-                    {sanitizeText(String(p.description || '').slice(0, 60))}{p.description?.length > 60 ? '...' : ''}
+        {/* Featured Shops */}
+        <section className="home__section">
+          <h3>Tiendas destacadas</h3>
+          <div className="home__shops-grid">
+            {shops && shops.length > 0 ? (
+              shops.slice(0, 8).map((s) => (
+                <Link key={s.id} to={`/shop/${encodeURIComponent(s.slug || s.id)}`} className="home__shop-card">
+                  <div className="home__shop-name">{s.name}</div>
+                  <div className="home__shop-description">{sanitizeText(s.description)}</div>
+                </Link>
+              ))
+            ) : (
+              <div className="home__empty">No hay tiendas disponibles.</div>
+            )}
+          </div>
+
+          {/* Recent Products */}
+          <h3 style={{ marginTop: 32 }}>Productos recientes</h3>
+          <div className="home__products-grid">
+            {products && products.length > 0 ? (
+              products.map((p) => (
+                <div key={p.id || p.pk || Math.random()} className="home__product-card">
+                  <div className="home__product-image-wrap">
+                    <img
+                      src={p.image || p.photo || placeholderSVG}
+                      alt={p.name}
+                      className="home__product-image"
+                      onError={(e) => (e.currentTarget.src = placeholderSVG)}
+                    />
                   </div>
-                  <div className="home__product-price">
-                    {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(Number(p.price || 0))}
+                  <div className="home__product-content">
+                    <div className="home__product-name">{p.name || p.title}</div>
+                    <div className="home__product-description">
+                      {sanitizeText(String(p.description || '').slice(0, 60))}{p.description?.length > 60 ? '...' : ''}
+                    </div>
+                    <div className="home__product-price">
+                      {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(Number(p.price || 0))}
+                    </div>
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="home__empty">No hay productos disponibles.</div>
+            )}
+          </div>
+        </section>
+
+        {/* How It Works */}
+        <section className="home__section">
+          <h3>Cómo funciona</h3>
+          <div className="home__steps-grid">
+            <div className="home__step-card">
+              <div className="home__step-icon">🔎</div>
+              <div>
+                <div className="home__step-title">Explora</div>
+                <div className="home__step-text">Encuentra tiendas y productos cerca de ti.</div>
               </div>
-            ))
-          ) : (
-            <div className="home__empty">No hay productos disponibles.</div>
-          )}
-        </div>
-      </section>
+            </div>
+            <div className="home__step-card">
+              <div className="home__step-icon">🧺</div>
+              <div>
+                <div className="home__step-title">Agrega al carrito</div>
+                <div className="home__step-text">Ajusta cantidades y compara opciones.</div>
+              </div>
+            </div>
+            <div className="home__step-card">
+              <div className="home__step-icon">💳</div>
+              <div>
+                <div className="home__step-title">Checkout</div>
+                <div className="home__step-text">Completa tu compra de forma segura.</div>
+              </div>
+            </div>
+            <div className="home__step-card">
+              <div className="home__step-icon">📦</div>
+              <div>
+                <div className="home__step-title">Recibe tu pedido</div>
+                <div className="home__step-text">Sigue el estado y disfruta tu compra.</div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      {/* How It Works */}
-      <section className="home__section">
-        <h3>Cómo funciona</h3>
-        <div className="home__steps-grid">
-          <div className="home__step-card">
-            <div className="home__step-icon">🔎</div>
-            <div>
-              <div className="home__step-title">Explora</div>
-              <div className="home__step-text">Encuentra tiendas y productos cerca de ti.</div>
-            </div>
+        {/* Merchant CTA */}
+        <section className="home__merchant-cta">
+          <div>
+            <h3>¿Tienes un negocio?</h3>
+            <p>Crea tu tienda, publica productos y empieza a vender hoy.</p>
+            <Link to="/register" className="home__cta-btn">Crear cuenta</Link>
           </div>
-          <div className="home__step-card">
-            <div className="home__step-icon">🧺</div>
-            <div>
-              <div className="home__step-title">Agrega al carrito</div>
-              <div className="home__step-text">Ajusta cantidades y compara opciones.</div>
-            </div>
-          </div>
-          <div className="home__step-card">
-            <div className="home__step-icon">💳</div>
-            <div>
-              <div className="home__step-title">Checkout</div>
-              <div className="home__step-text">Completa tu compra de forma segura.</div>
-            </div>
-          </div>
-          <div className="home__step-card">
-            <div className="home__step-icon">📦</div>
-            <div>
-              <div className="home__step-title">Recibe tu pedido</div>
-              <div className="home__step-text">Sigue el estado y disfruta tu compra.</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Merchant CTA */}
-      <section className="home__merchant-cta">
-        <div>
-          <h3>¿Tienes un negocio?</h3>
-          <p>Crea tu tienda, publica productos y empieza a vender hoy.</p>
-          <Link to="/register" className="home__cta-btn">Crear cuenta</Link>
-        </div>
-        <div className="home__cta-visual">{shopMiniSVG}</div>
-      </section>
+          <div className="home__cta-visual">{shopMiniSVG}</div>
+        </section>
+      </main>
     </div>
   );
 }

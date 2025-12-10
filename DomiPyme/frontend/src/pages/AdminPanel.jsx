@@ -129,7 +129,7 @@ export default function AdminPanel() {
   // Los datos ya vienen filtrados del backend
 
   return (
-    <div style={{...styles.page, background: 'linear-gradient(120deg, #f0f4ff 0%, #f8fafc 100%)', minHeight: '100vh'}} className={mounted ? 'page-enter' : ''}>
+    <div style={{...styles.page}} className={mounted ? 'page-enter app-bg page-content responsive-grid' : 'app-bg page-content responsive-grid'}>
       <style>{`
         .page-enter { animation: pageEnter 320ms ease both; }
         @keyframes pageEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

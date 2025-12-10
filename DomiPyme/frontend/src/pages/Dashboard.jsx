@@ -11,7 +11,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div
-        className="customer-dashboard-loading"
+        className="customer-dashboard-loading app-bg page-content responsive-grid"
         role="status"
         aria-live="polite"
         aria-busy="true"

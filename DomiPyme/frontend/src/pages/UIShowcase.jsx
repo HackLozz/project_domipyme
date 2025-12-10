@@ -21,7 +21,7 @@ const UIShowcase = () => {
   };
 
   return (
-    <main style={styles.container} role="main" aria-label="Showcase de componentes UI/UX">
+    <main style={styles.container} className="app-bg page-content responsive-grid" role="main" aria-label="Showcase de componentes UI/UX">
       <h1 style={styles.title} tabIndex={-1}>🎨 Showcase de Componentes UX/UI</h1>
 
       {/* Buttons Section */}

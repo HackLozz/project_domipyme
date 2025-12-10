@@ -127,7 +127,7 @@ export default function Checkout() {
   }
 
   return (
-    <div className="checkout-page">
+    <div className="checkout-page app-bg page-content responsive-grid">
       <div className="checkout-header">
         <h1>Checkout</h1>
         <div className="checkout-steps">

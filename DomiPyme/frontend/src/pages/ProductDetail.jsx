@@ -88,7 +88,7 @@ export default function ProductDetail() {
   const reviewCount = product.review_count || 0;
 
   return (
-    <div style={{ padding: 20, maxWidth: 1000, margin: '0 auto' }}>
+    <div style={{ padding: 20, maxWidth: 1000, margin: '0 auto' }} className="app-bg page-content responsive-grid">
       <Link to={product?.shop_slug ? `/shop/${product.shop_slug}` : '/catalog'} style={{ textDecoration: 'none' }}>&larr; Volver</Link>
       
       {/* Sección de Producto */}

@@ -69,7 +69,7 @@ const Cart = () => {
   const isEmpty = items.length === 0;
 
   return (
-    <div className="container">
+    <div className="container app-bg page-content responsive-grid">
       <div className="cart-page">
         <div className="cart-header">
           <h1>🛒 Mi Carrito</h1>

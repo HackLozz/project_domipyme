@@ -283,7 +283,7 @@ export default function ShopPage() {
   }
 
   return (
-    <main style={styles.container} role="main" aria-label={`Tienda ${shop.name || ''}`}>
+    <main style={styles.container} className="app-bg page-content responsive-grid" role="main" aria-label={`Tienda ${shop.name || ''}`}>
       <header style={styles.header}>
         <div>
           <h1 style={styles.shopTitle}>{shop.name}</h1>

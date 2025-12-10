@@ -28,7 +28,7 @@ export default function VerifyEmail() {
   };
 
   return (
-    <main className="verify-email-page" role="main" aria-label="Verificación de correo" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f3f4f6' }}>
+    <main className="verify-email-page app-bg page-content responsive-grid" role="main" aria-label="Verificación de correo" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div className="verify-email-card" style={{ background: '#fff', borderRadius: 16, boxShadow: '0 8px 32px rgba(15,23,42,0.10)', padding: 36, maxWidth: 400, width: '100%' }}>
         <h1 style={{ color: '#2563eb', marginBottom: 12, fontSize: 26 }}>Verifica tu correo</h1>
         <p>Ingresa el código que te enviamos a <strong>{email}</strong> para activar tu cuenta.</p>

@@ -1,3 +1,35 @@
+body, #root, .app-bg {
+  min-height: 100vh;
+  background: linear-gradient(120deg, #f0f4ff 0%, #f8fafc 100%) !important;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: #1d3557;
+}
+
+main, .main-content, .page-content {
+  background: transparent !important;
+}
+
+@media (max-width: 900px) {
+  .responsive-grid, .admin-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .admin-aside, .aside {
+    margin-top: 24px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-stats, .statsGrid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  th, td {
+    font-size: 12px !important;
+    padding: 6px 4px !important;
+  }
+  .page-content, .main-content {
+    padding: 8px !important;
+  }
+}
 #root {
   max-width: 1280px;
   margin: 0 auto;

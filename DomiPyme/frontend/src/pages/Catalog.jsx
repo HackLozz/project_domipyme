@@ -106,7 +106,7 @@ export default function Catalog() {
   );
 
   return (
-    <main style={styles.container} role="main" aria-label="Catálogo de comercios">
+    <main style={styles.container} className="app-bg page-content responsive-grid" role="main" aria-label="Catálogo de comercios">
       {/* estilos CSS para animaciones y skeletons */}
       <style>{`
         .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; list-style: none; padding: 0; margin: 0; }
